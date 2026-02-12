@@ -43,3 +43,9 @@ async def root():
 async def health():
     return {"status": "healthy"}
 
+
+@app.get("/wakeup")
+async def wakeup():
+    """Wakeup endpoint for Railway sleeping apps"""
+    return {"status": "awake", "message": "API is ready"}
+
