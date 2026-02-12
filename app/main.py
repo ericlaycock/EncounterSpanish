@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from app.api.v1 import auth, subscription, situations, user_words, conversations
 from app.database import engine
 from app.models import Base
@@ -8,10 +9,20 @@ from app.models import Base
 # Create tables (in production, use migrations)
 # Base.metadata.create_all(bind=engine)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Wake up the app
+    print("🚀 Encounter Spanish API starting up...")
+    yield
+    # Shutdown
+    print("👋 Encounter Spanish API shutting down...")
+
 app = FastAPI(
     title="Encounter Spanish API",
     description="Backend API for Spanish survival language app",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware
