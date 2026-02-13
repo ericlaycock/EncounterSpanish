@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
-from app.models import Base, Word, Situation, SituationWord
+from app.models import Base, Word, Situation, SituationWord, User, Subscription
 
 # Create tables
 Base.metadata.create_all(bind=engine)
