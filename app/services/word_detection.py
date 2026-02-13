@@ -24,6 +24,7 @@ def detect_words_in_text(text: str, words: List[Word]) -> List[str]:
     """
     Detect which words/phrases appear in the given text.
     Returns list of word_ids that were detected.
+    Uses word boundary matching for better accuracy.
     """
     normalized_text = normalize_text(text)
     detected_word_ids = []
@@ -32,9 +33,19 @@ def detect_words_in_text(text: str, words: List[Word]) -> List[str]:
         # Normalize the Spanish word/phrase
         normalized_word = normalize_text(word.spanish)
         
-        # Check if the normalized word appears as a substring
-        if normalized_word in normalized_text:
-            detected_word_ids.append(word.id)
+        # For multi-word phrases, check as substring
+        # For single words, use word boundary matching
+        if ' ' in normalized_word:
+            # Multi-word phrase: check as substring
+            if normalized_word in normalized_text:
+                detected_word_ids.append(word.id)
+        else:
+            # Single word: use word boundary matching for accuracy
+            # Check if word appears as whole word (not part of another word)
+            import re
+            pattern = r'\b' + re.escape(normalized_word) + r'\b'
+            if re.search(pattern, normalized_text):
+                detected_word_ids.append(word.id)
     
     return detected_word_ids
 
