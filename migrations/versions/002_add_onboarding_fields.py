@@ -36,3 +36,4 @@ def downgrade() -> None:
     op.drop_column('users', 'selected_situation_categories')
     op.drop_column('users', 'onboarding_completed')
 
+

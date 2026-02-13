@@ -102,3 +102,4 @@ async def get_available_categories(
     
     return {"categories": result}
 
+
