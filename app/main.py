@@ -7,7 +7,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 import logging
 import os
-from app.api.v1 import auth, subscription, situations, user_words, conversations
+from app.api.v1 import auth, subscription, situations, user_words, conversations, onboarding
 from app.database import engine
 from app.models import Base
 
@@ -209,6 +209,9 @@ app.include_router(user_words.router, prefix="/v1/user/words", tags=["user-words
 logger.info("  ✅ /v1/user/words")
 app.include_router(conversations.router, prefix="/v1/conversations", tags=["conversations"])
 logger.info("  ✅ /v1/conversations (POST /, POST /{id}/messages, GET /{id}/stream, POST /{id}/voice-turn)")
+from app.api.v1 import onboarding
+app.include_router(onboarding.router, prefix="/v1/onboarding", tags=["onboarding"])
+logger.info("  ✅ /v1/onboarding (POST /save-selections, GET /status, GET /available-categories)")
 logger.info("✅ All routes registered")
 
 

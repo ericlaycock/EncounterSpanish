@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from app.database import get_db
 from app.auth import get_current_user
 from app.models import User, Situation, SituationWord, UserSituation, UserWord, Word
@@ -11,8 +12,99 @@ from app.schemas import (
     CompleteSituationResponse,
     WordSchema
 )
+from pydantic import BaseModel
+from typing import List, Optional
 
 router = APIRouter()
+
+
+class SelectedSituationProgress(BaseModel):
+    category: str
+    category_name: str
+    current_situation_id: str
+    current_situation_title: str
+    progress: int  # e.g., 2/50
+    total_in_series: int = 50
+
+
+@router.get("/selected", response_model=List[SelectedSituationProgress])
+async def get_selected_situations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get user's selected situations with progress"""
+    if not current_user.onboarding_completed or not current_user.selected_situation_categories:
+        return []
+    
+    selected_categories = current_user.selected_situation_categories
+    result = []
+    
+    # Get all completed situations for this user
+    completed_situations = {
+        us.situation_id: us
+        for us in db.query(UserSituation).filter(
+            and_(
+                UserSituation.user_id == current_user.id,
+                UserSituation.completed_at.isnot(None)
+            )
+        ).all()
+    }
+    
+    for category_id in selected_categories:
+        # Get all situations in this category
+        category_situations = db.query(Situation).filter(
+            Situation.category == category_id
+        ).order_by(Situation.series_number).all()
+        
+        if not category_situations:
+            continue
+        
+        # Find the next situation to complete
+        next_situation = None
+        completed_count = 0
+        
+        for situation in category_situations:
+            if situation.id in completed_situations:
+                completed_count += 1
+            elif next_situation is None:
+                next_situation = situation
+        
+        # If all are completed, use the last one
+        if next_situation is None:
+            next_situation = category_situations[-1]
+        
+        # Map category ID to display name
+        category_map = {
+            "banking": "Banking",
+            "small_talk": "Small Talk",
+            "groceries": "Groceries",
+            "pharmacy": "Pharmacy",
+            "apartment": "Apartment",
+            "police": "Police",
+            "delivery": "Delivery",
+            "restaurant": "Restaurant",
+            "transport": "Transport",
+            "shopping": "Shopping",
+            "internet": "Internet",
+            "social": "Social",
+            "mechanic": "Mechanic",
+            "contractor": "Home Renovation",
+            "airport": "Airport",
+            "hardware": "Hardware Store",
+            "clothing": "Clothing Shopping",
+            "chat": "Chat Practice",
+        }
+        
+        result.append(SelectedSituationProgress(
+            category=category_id,
+            category_name=category_map.get(category_id, category_id.replace("_", " ").title()),
+            current_situation_id=next_situation.id,
+            current_situation_title=next_situation.title,
+            progress=completed_count + 1,  # +1 because we're showing the next one
+            total_in_series=50
+        ))
+    
+    return result
 
 
 @router.get("", response_model=list[SituationListItem])
@@ -187,13 +279,22 @@ async def complete_situation(
     user_situation.completed_at = datetime.utcnow()
     db.commit()
     
-    # Find next situation
+    # Find next situation in the same category
     current_situation = db.query(Situation).filter(Situation.id == situation_id).first()
-    next_situation = db.query(Situation).filter(
-        Situation.order_index > current_situation.order_index
-    ).order_by(Situation.order_index).first()
-    
-    next_situation_id = next_situation.id if next_situation else None
+    if current_situation and current_situation.category:
+        next_situation = db.query(Situation).filter(
+            and_(
+                Situation.category == current_situation.category,
+                Situation.series_number > current_situation.series_number
+            )
+        ).order_by(Situation.series_number).first()
+        
+        next_situation_id = next_situation.id if next_situation else None
+    else:
+        # Fallback to old behavior
+        next_situation = db.query(Situation).filter(
+            Situation.order_index > current_situation.order_index
+        ).order_by(Situation.order_index).first()
+        next_situation_id = next_situation.id if next_situation else None
     
     return CompleteSituationResponse(next_situation_id=next_situation_id)
-
