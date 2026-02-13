@@ -207,40 +207,54 @@ async def test_cors():
 @app.post("/seed")
 async def seed_database_endpoint():
     """One-time endpoint to seed the database with situations and words"""
-    import subprocess
     import sys
+    import os
     
     try:
         logger.info("🌱 Starting database seed via endpoint...")
-        # Run the standalone seed script
-        result = subprocess.run(
-            [sys.executable, "seed_standalone.py"],
-            capture_output=True,
-            text=True,
-            timeout=300  # 5 minute timeout
-        )
         
-        if result.returncode == 0:
-            logger.info("✅ Database seed completed successfully")
-            return {
-                "status": "success",
-                "message": "Database seeded successfully",
-                "output": result.stdout
-            }
-        else:
-            logger.error(f"❌ Database seed failed: {result.stderr}")
-            return {
-                "status": "error",
-                "message": "Database seed failed",
-                "error": result.stderr,
-                "output": result.stdout
-            }
+        # Import and run the seed function directly
+        # Add current directory to path
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        
+        # Import seed function from standalone script
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("seed_standalone", "seed_standalone.py")
+        seed_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(seed_module)
+        
+        # Capture output
+        import io
+        from contextlib import redirect_stdout, redirect_stderr
+        
+        output_buffer = io.StringIO()
+        error_buffer = io.StringIO()
+        
+        with redirect_stdout(output_buffer), redirect_stderr(error_buffer):
+            seed_module.seed_database()
+        
+        output = output_buffer.getvalue()
+        errors = error_buffer.getvalue()
+        
+        logger.info("✅ Database seed completed successfully")
+        logger.info(f"Output: {output}")
+        if errors:
+            logger.warning(f"Warnings: {errors}")
+        
+        return {
+            "status": "success",
+            "message": "Database seeded successfully",
+            "output": output,
+            "errors": errors if errors else None
+        }
     except Exception as e:
         logger.error(f"❌ Error running seed: {e}")
         import traceback
-        logger.error(traceback.format_exc())
+        error_trace = traceback.format_exc()
+        logger.error(error_trace)
         return {
             "status": "error",
-            "message": str(e)
+            "message": str(e),
+            "traceback": error_trace
         }
 
