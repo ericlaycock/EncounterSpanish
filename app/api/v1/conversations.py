@@ -178,9 +178,8 @@ Still need to elicit: {', '.join(missing_words) if missing_words else 'None'}
 Context for missing words:
 {chr(10).join(f"- {ctx}" for ctx in missing_word_context) if missing_word_context else "All words have been used."}
 
-Conversation history: [Previous messages would go here]
-
-Reply in English with a natural question that would require the user to use one of the missing Spanish words. Do NOT mention the Spanish word directly."""
+Reply in English with a natural question that would require the user to use one of the missing Spanish words. Do NOT mention the Spanish word directly.
+For example, to elicit "vuelo" (flight), ask "What is your flight number?" not "Can you say vuelo?"."""
     
     async def generate():
         async for chunk in stream_text(system_prompt, user_prompt):
