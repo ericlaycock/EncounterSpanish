@@ -155,20 +155,25 @@ async def stream_conversation(
     system_prompt = """You are a helpful assistant at a Spanish-speaking location helping an English-speaking expat.
 Speak only in English. Keep responses to 1-2 sentences.
 Naturally ask questions that require the user to use specific Spanish words - but NEVER mention the Spanish words directly.
-Encourage natural conversation where the user can use multiple Spanish words together."""
+Encourage natural conversation where the user can use multiple Spanish words together.
+Once a word has been used, move on to asking about the remaining words."""
     
-    # Build concise context
+    # Build concise context - only missing words
     missing_words_info = []
     for word in words:
         if word.id not in (conversation.used_typed_word_ids or []):
             missing_words_info.append(f"{word.spanish} ({word.english})")
     
     # Concise user prompt
-    user_prompt = f"""Situation: {situation.title}
-Still need: {', '.join(missing_words_info) if missing_words_info else 'All words used'}
+    if missing_words_info:
+        user_prompt = f"""Situation: {situation.title}
+Still need to elicit: {', '.join(missing_words_info)}
 Already used: {', '.join(used_words) if used_words else 'None'}
 
-Ask a natural question that would require using one of the missing Spanish words. Do NOT mention the Spanish word."""
+Ask a natural question about one of the missing words. Do NOT mention the Spanish word. Move the conversation forward naturally."""
+    else:
+        user_prompt = f"""Situation: {situation.title}
+All words have been used. Continue the conversation naturally to complete the interaction."""
     
     async def generate():
         async for chunk in stream_text(system_prompt, user_prompt):
