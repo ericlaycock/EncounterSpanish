@@ -21,28 +21,28 @@ Base.metadata.create_all(bind=engine)
 
 # All 50 situations - first 15 are free, rest are premium
 SITUATIONS = [
-    # BANK (1-4) - FREE
-    {"id": "bank_card_1", "title": "Card Not Working at Bank – 1", "order_index": 1, "is_free": True},
-    {"id": "bank_card_2", "title": "Card Not Working at Bank – 2", "order_index": 2, "is_free": True},
-    {"id": "bank_atm_1", "title": "ATM Not Dispensing Cash – 1", "order_index": 3, "is_free": True},
-    {"id": "bank_account_1", "title": "Opening an Account – 1", "order_index": 4, "is_free": True},
+    # ESSENTIAL SURVIVAL (1-5) - FREE
+    {"id": "airport_checkin_1", "title": "Checking in at the Airport – 1", "order_index": 1, "is_free": True},
+    {"id": "mechanic_talk_1", "title": "Talking to the Mechanic – 1", "order_index": 2, "is_free": True},
+    {"id": "shopping_1", "title": "Shopping – 1", "order_index": 3, "is_free": True},
+    {"id": "small_talk_1", "title": "Small Talk – 1", "order_index": 4, "is_free": True},
+    {"id": "contractor_reno_1", "title": "Talking to Home Reno Contractor – 1", "order_index": 5, "is_free": True},
     
-    # PHARMACY / HEALTH (5-8) - FREE
-    {"id": "pharm_medicine_1", "title": "Buying Medicine at Pharmacy – 1", "order_index": 5, "is_free": True},
-    {"id": "pharm_headache_1", "title": "Headache or Fever – 1", "order_index": 6, "is_free": True},
-    {"id": "pharm_stomach_1", "title": "Stomach Issue – 1", "order_index": 7, "is_free": True},
-    {"id": "pharm_prescription_1", "title": "Prescription Pickup – 1", "order_index": 8, "is_free": True},
+    # BANK (6-9) - FREE
+    {"id": "bank_card_1", "title": "Card Not Working at Bank – 1", "order_index": 6, "is_free": True},
+    {"id": "bank_card_2", "title": "Card Not Working at Bank – 2", "order_index": 7, "is_free": True},
+    {"id": "bank_atm_1", "title": "ATM Not Dispensing Cash – 1", "order_index": 8, "is_free": True},
+    {"id": "bank_account_1", "title": "Opening an Account – 1", "order_index": 9, "is_free": True},
     
-    # APARTMENT / HOUSING (9-12) - FREE
-    {"id": "apt_viewing_1", "title": "Apartment Viewing – 1", "order_index": 9, "is_free": True},
-    {"id": "apt_rent_1", "title": "Rent and Deposit – 1", "order_index": 10, "is_free": True},
-    {"id": "apt_utilities_1", "title": "Utilities Question – 1", "order_index": 11, "is_free": True},
-    {"id": "apt_appliance_1", "title": "Broken Appliance – 1", "order_index": 12, "is_free": True},
+    # PHARMACY / HEALTH (10-13) - FREE
+    {"id": "pharm_medicine_1", "title": "Buying Medicine at Pharmacy – 1", "order_index": 10, "is_free": True},
+    {"id": "pharm_headache_1", "title": "Headache or Fever – 1", "order_index": 11, "is_free": True},
+    {"id": "pharm_stomach_1", "title": "Stomach Issue – 1", "order_index": 12, "is_free": True},
+    {"id": "pharm_prescription_1", "title": "Prescription Pickup – 1", "order_index": 13, "is_free": True},
     
-    # POLICE / DOCUMENTS (13-15) - FREE
-    {"id": "police_traffic_1", "title": "Traffic Stop – 1", "order_index": 13, "is_free": True},
-    {"id": "police_passport_1", "title": "Passport Check – 1", "order_index": 14, "is_free": True},
-    {"id": "police_fine_1", "title": "Receiving a Fine – 1", "order_index": 15, "is_free": True},
+    # APARTMENT / HOUSING (14-15) - FREE
+    {"id": "apt_viewing_1", "title": "Apartment Viewing – 1", "order_index": 14, "is_free": True},
+    {"id": "apt_rent_1", "title": "Rent and Deposit – 1", "order_index": 15, "is_free": True},
     
     # DELIVERY / DIRECTIONS (16-18) - PREMIUM
     {"id": "delivery_package_1", "title": "Package Delivery – 1", "order_index": 16, "is_free": False},
@@ -104,6 +104,43 @@ SITUATIONS = [
 
 # All words with their Spanish and English
 WORDS = [
+    # AIRPORT
+    {"id": "w_vuelo", "spanish": "vuelo", "english": "flight"},
+    {"id": "w_pasaporte", "spanish": "pasaporte", "english": "passport"},
+    {"id": "w_maleta", "spanish": "maleta", "english": "suitcase"},
+    {"id": "w_equipaje", "spanish": "equipaje", "english": "luggage"},
+    {"id": "w_asiento_avion", "spanish": "asiento", "english": "seat"},
+    {"id": "w_salida", "spanish": "salida", "english": "departure/gate"},
+    
+    # MECHANIC
+    {"id": "w_coche", "spanish": "coche", "english": "car"},
+    {"id": "w_reparar", "spanish": "reparar", "english": "to repair"},
+    {"id": "w_taller", "spanish": "taller", "english": "workshop/garage"},
+    {"id": "w_motor", "spanish": "motor", "english": "engine"},
+    {"id": "w_ruido", "spanish": "ruido", "english": "noise"},
+    {"id": "w_freno", "spanish": "freno", "english": "brake"},
+    
+    # SHOPPING (basic)
+    {"id": "w_comprar", "spanish": "comprar", "english": "to buy"},
+    {"id": "w_tienda", "spanish": "tienda", "english": "store"},
+    {"id": "w_tarjeta_credito", "spanish": "tarjeta de crédito", "english": "credit card"},
+    
+    # SMALL TALK
+    {"id": "w_hola", "spanish": "hola", "english": "hello"},
+    {"id": "w_como", "spanish": "cómo", "english": "how"},
+    {"id": "w_bien", "spanish": "bien", "english": "well/good"},
+    {"id": "w_gracias", "spanish": "gracias", "english": "thank you"},
+    {"id": "w_por_favor", "spanish": "por favor", "english": "please"},
+    {"id": "w_perdon", "spanish": "perdón", "english": "sorry"},
+    
+    # CONTRACTOR / HOME RENO
+    {"id": "w_contratista", "spanish": "contratista", "english": "contractor"},
+    {"id": "w_obra", "spanish": "obra", "english": "construction/work"},
+    {"id": "w_material", "spanish": "material", "english": "material"},
+    {"id": "w_fecha", "spanish": "fecha", "english": "date"},
+    {"id": "w_presupuesto", "spanish": "presupuesto", "english": "budget/quote"},
+    {"id": "w_terminar", "spanish": "terminar", "english": "to finish"},
+    
     # BANK
     {"id": "w_banco", "spanish": "banco", "english": "bank"},
     {"id": "w_tarjeta", "spanish": "tarjeta", "english": "card"},
@@ -273,6 +310,13 @@ WORDS = [
 
 # Situation-word mappings
 SITUATION_WORDS = {
+    # ESSENTIAL SURVIVAL (1-5)
+    "airport_checkin_1": ["w_vuelo", "w_pasaporte", "w_maleta"],
+    "mechanic_talk_1": ["w_coche", "w_problema", "w_reparar"],
+    "shopping_1": ["w_comprar", "w_precio", "w_tienda"],
+    "small_talk_1": ["w_hola", "w_como", "w_bien"],
+    "contractor_reno_1": ["w_contratista", "w_obra", "w_precio"],
+    
     # BANK
     "bank_card_1": ["w_banco", "w_tarjeta", "w_problema"],
     "bank_card_2": ["w_cuenta", "w_dinero", "w_sistema"],
