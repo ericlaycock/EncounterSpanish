@@ -43,10 +43,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware - MUST be added first, before any other middleware
+# CORS middleware - Use function to allow all origins
+def allow_all_origins(origin: str) -> bool:
+    return True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_func=allow_all_origins,  # Use function to allow all origins
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -147,4 +150,14 @@ async def health():
 async def wakeup():
     """Wakeup endpoint for Railway sleeping apps"""
     return {"status": "awake", "message": "API is ready"}
+
+
+@app.get("/test-cors")
+async def test_cors():
+    """Test endpoint to verify CORS is working"""
+    return {
+        "status": "CORS test",
+        "message": "If you can see this, CORS is working!",
+        "headers": "Check browser network tab for CORS headers"
+    }
 
