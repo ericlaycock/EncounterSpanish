@@ -167,7 +167,7 @@ def seed_database():
         print("\n📚 Creating situations...")
         situation_map = {}
         for title, word_list, order_index, is_free in SEED_DATA:
-            situation_id = f"s_{order_index}"
+            situation_id = str(order_index)  # Use just the number as ID
             existing = db.query(Situation).filter(Situation.id == situation_id).first()
             if existing:
                 existing.title = title
