@@ -35,13 +35,19 @@ async def register(credentials: RegisterRequest, db: Session = Depends(get_db)):
 @router.post("/login", response_model=LoginResponse)
 async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate user and return JWT token"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Login attempt for email: {credentials.email}")
     user = authenticate_user(db, credentials.email, credentials.password)
     if not user:
+        logger.warning(f"Login failed for email: {credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
     
+    logger.info(f"Login successful for user: {user.id}")
     access_token = create_access_token(data={"sub": str(user.id)})
     return LoginResponse(access_token=access_token, user_id=user.id)
 

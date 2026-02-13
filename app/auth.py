@@ -98,6 +98,9 @@ async def get_current_user(
     db: Session = Depends(get_db)
 ) -> User:
     """Get the current authenticated user from JWT token"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -106,21 +109,27 @@ async def get_current_user(
     
     try:
         token = credentials.credentials
+        logger.info(f"Validating token: {token[:20]}...")
         payload = jwt.decode(
             token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
         )
         user_id_str: str = payload.get("sub")
         if user_id_str is None:
+            logger.warning("Token missing 'sub' claim")
             raise credentials_exception
         # Convert string UUID to UUID object
         user_id = uuid.UUID(user_id_str)
+        logger.info(f"Token validated for user_id: {user_id}")
     except (JWTError, ValueError) as e:
+        logger.warning(f"Token validation failed: {e}")
         raise credentials_exception
     
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
+        logger.warning(f"User not found for user_id: {user_id}")
         raise credentials_exception
     
+    logger.info(f"User authenticated: {user.email}")
     return user
 
 
