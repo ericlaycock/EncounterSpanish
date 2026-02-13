@@ -251,11 +251,8 @@ async def seed_database_endpoint():
         # Add current directory to path
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         
-        # Import seed function from standalone script
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("seed_standalone", "seed_standalone.py")
-        seed_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(seed_module)
+        # Import seed function from seeds module
+        from seeds.seed_data import seed_database
         
         # Capture output
         import io
@@ -265,7 +262,7 @@ async def seed_database_endpoint():
         error_buffer = io.StringIO()
         
         with redirect_stdout(output_buffer), redirect_stderr(error_buffer):
-            seed_module.seed_database()
+            seed_database()
         
         output = output_buffer.getvalue()
         errors = error_buffer.getvalue()
