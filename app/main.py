@@ -37,12 +37,19 @@ app.add_middleware(
 # Mount static files for audio
 app.mount("/audio", StaticFiles(directory="/tmp/audio"), name="audio")
 
-# Include routers
+# Include routers with /v1 prefix
 app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
 app.include_router(subscription.router, prefix="/v1/subscription", tags=["subscription"])
 app.include_router(situations.router, prefix="/v1/situations", tags=["situations"])
 app.include_router(user_words.router, prefix="/v1/user/words", tags=["user-words"])
 app.include_router(conversations.router, prefix="/v1/conversations", tags=["conversations"])
+
+# Include routers without /v1 prefix for frontend compatibility
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
+app.include_router(situations.router, prefix="/situations", tags=["situations"])
+app.include_router(user_words.router, prefix="/user/words", tags=["user-words"])
+app.include_router(conversations.router, prefix="/conversations", tags=["conversations"])
 
 
 @app.get("/")
