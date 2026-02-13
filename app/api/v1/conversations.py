@@ -151,21 +151,47 @@ async def stream_conversation(
     used_words = [w.spanish for w in words if w.id in (conversation.used_typed_word_ids or [])]
     missing_words = [w.spanish for w in words if w.id not in (conversation.used_typed_word_ids or [])]
     
-    # System prompt for Screen 2
-    system_prompt = """You are a language coach in an expat survival Spanish app.
+    # System prompt - indirectly elicit words without mentioning them
+    system_prompt = """You are a helpful assistant at a Spanish-speaking location (airport, bank, etc.) helping an English-speaking expat.
 You always speak in English.
-You guide the user to insert specific Spanish target words exactly as provided.
+Your goal is to naturally elicit specific Spanish words from the user through context, WITHOUT ever mentioning the Spanish words directly.
+Ask questions that would naturally require the user to use the target Spanish word.
 Keep responses short (1–2 sentences).
-Do not introduce new Spanish.
-Do not mention target words explicitly."""
+Do not introduce new Spanish words.
+Do not mention target words explicitly - instead ask questions that would naturally require them.
+For example, to elicit "vuelo" (flight), ask "What is your flight number?" not "Can you say vuelo?"."""
+    
+    # Build context about what words to elicit
+    missing_word_context = []
+    for word in words:
+        if word.id not in (conversation.used_typed_word_ids or []):
+            # Create indirect prompts for each missing word
+            if word.spanish == "vuelo":
+                missing_word_context.append("Ask about their flight number or flight details")
+            elif word.spanish == "pasaporte":
+                missing_word_context.append("Ask to see their passport or passport number")
+            elif word.spanish == "maleta":
+                missing_word_context.append("Ask about their suitcase or luggage")
+            elif word.spanish == "equipaje":
+                missing_word_context.append("Ask about their luggage or baggage")
+            elif word.spanish == "salida":
+                missing_word_context.append("Ask about their departure gate or exit")
+            else:
+                # Generic fallback - ask about the concept
+                missing_word_context.append(f"Ask about {word.english} in a way that would require saying '{word.spanish}'")
     
     # Developer template
     user_prompt = f"""Situation: {situation.title}
-Target Spanish words: {', '.join(target_words)}
-Already used: {', '.join(used_words) if used_words else 'None'}
-Missing words: {', '.join(missing_words) if missing_words else 'None'}
+Target Spanish words to elicit (DO NOT mention these directly): {', '.join([w.spanish for w in words])}
+Already used by user: {', '.join(used_words) if used_words else 'None'}
+Still need to elicit: {', '.join(missing_words) if missing_words else 'None'}
 
-Reply in English with a short question that nudges use of missing words."""
+Context for missing words:
+{chr(10).join(f"- {ctx}" for ctx in missing_word_context) if missing_word_context else "All words have been used."}
+
+Conversation history: [Previous messages would go here]
+
+Reply in English with a natural question that would require the user to use one of the missing Spanish words. Do NOT mention the Spanish word directly."""
     
     async def generate():
         async for chunk in stream_text(system_prompt, user_prompt):
@@ -231,18 +257,37 @@ async def voice_turn(
     used_words = [w.spanish for w in words if w.id in (conversation.used_spoken_word_ids or [])]
     missing_words = [w.spanish for w in words if w.id not in (conversation.used_spoken_word_ids or [])]
     
-    system_prompt = """You are a voice conversation coach in an expat survival Spanish app.
+    system_prompt = """You are a helpful assistant at a Spanish-speaking location helping an English-speaking expat.
 You always speak in English.
 Keep replies short (max 15 words).
-Ask a question that forces use of missing Spanish target words.
+Naturally elicit specific Spanish words through context, WITHOUT mentioning them directly.
 Do not introduce new Spanish.
 Return JSON with keys:
 - assistant_text
 - end_conversation"""
     
+    missing_word_context = []
+    for word in words:
+        if word.id not in (conversation.used_spoken_word_ids or []):
+            if word.spanish == "vuelo":
+                missing_word_context.append("Ask about their flight number or flight details")
+            elif word.spanish == "pasaporte":
+                missing_word_context.append("Ask to see their passport or passport number")
+            elif word.spanish == "maleta":
+                missing_word_context.append("Ask about their suitcase or luggage")
+            elif word.spanish == "equipaje":
+                missing_word_context.append("Ask about their luggage or baggage")
+            elif word.spanish == "salida":
+                missing_word_context.append("Ask about their departure gate or exit")
+            else:
+                missing_word_context.append(f"Ask about {word.english} in a way that would require saying '{word.spanish}'")
+    
     user_prompt = f"""Situation: {situation.title}
-Target Spanish words: {', '.join(target_words)}
+Target Spanish words to elicit (DO NOT mention directly): {', '.join([w.spanish for w in words])}
 Already spoken: {', '.join(used_words) if used_words else 'None'}
+Still need to elicit: {', '.join(missing_words) if missing_words else 'None'}
+
+Context: {chr(10).join(f"- {ctx}" for ctx in missing_word_context) if missing_word_context else "All words used."}
 User transcript: {user_transcript}
 
 Return JSON only."""
