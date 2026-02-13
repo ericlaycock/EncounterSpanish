@@ -4,8 +4,17 @@ import json
 import io
 from app.config import settings
 
-client = OpenAI(api_key=settings.openai_api_key)
 MODEL = "gpt-4.1-mini"
+
+# Lazy initialization to avoid import-time errors
+_client = None
+
+def get_client() -> OpenAI:
+    """Get or create OpenAI client"""
+    global _client
+    if _client is None:
+        _client = OpenAI(api_key=settings.openai_api_key)
+    return _client
 
 
 async def generate_text(
@@ -14,6 +23,7 @@ async def generate_text(
     return_json: bool = False
 ) -> Union[str, Dict]:
     """Generate text using OpenAI chat completions"""
+    client = get_client()
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt}
@@ -36,6 +46,7 @@ async def stream_text(
     user_prompt: str
 ) -> AsyncGenerator[str, None]:
     """Stream text using OpenAI chat completions for SSE"""
+    client = get_client()
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt}
@@ -54,6 +65,7 @@ async def stream_text(
 
 async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.mp3") -> str:
     """Transcribe audio using OpenAI STT"""
+    client = get_client()
     # Create a file-like object from bytes
     audio_file = io.BytesIO(audio_bytes)
     audio_file.name = filename
@@ -67,6 +79,7 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.mp3") -> s
 
 async def generate_speech(text: str, output_path: str) -> str:
     """Generate speech using OpenAI TTS and save to file"""
+    client = get_client()
     response = client.audio.speech.create(
         model="tts-1",
         voice="alloy",
