@@ -37,6 +37,32 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
+def create_user(db: Session, email: str, password: str) -> User:
+    """Create a new user with hashed password"""
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Hash password and create user
+    password_hash = get_password_hash(password)
+    user = User(email=email, password_hash=password_hash)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    # Create default subscription
+    from app.models import Subscription
+    subscription = Subscription(user_id=user.id, active=False)
+    db.add(subscription)
+    db.commit()
+    
+    return user
+
+
 def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     """Authenticate a user by email and password"""
     user = db.query(User).filter(User.email == email).first()
@@ -74,4 +100,6 @@ async def get_current_user(
         raise credentials_exception
     
     return user
+
+
 

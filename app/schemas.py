@@ -10,6 +10,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    confirm_password: str
+
+
 class LoginResponse(BaseModel):
     access_token: str
     user_id: UUID
@@ -111,4 +117,6 @@ class VoiceTurnResponse(BaseModel):
 # Error schemas
 class ErrorResponse(BaseModel):
     error: str
+
+
 
