@@ -43,21 +43,21 @@ class SituationWord(Base):
 
 # Seed data (same as before)
 SEED_DATA = [
-    ("Card Not Working at Bank – 1", ["banco", "tarjeta", "problema"], 1, True),
-    ("Card Not Working at Bank – 2", ["cuenta", "dinero", "sistema"], 2, True),
-    ("ATM Not Dispensing Cash – 1", ["cajero", "efectivo", "número"], 3, True),
-    ("Opening an Account – 1", ["contrato", "firma", "documento"], 4, True),
-    ("Buying Medicine at Pharmacy – 1", ["farmacia", "medicina", "dolor"], 5, True),
-    ("Headache or Fever – 1", ["cabeza", "fiebre", "cuerpo"], 6, False),
-    ("Stomach Issue – 1", ["estómago", "agua", "pastilla"], 7, False),
-    ("Prescription Pickup – 1", ["receta", "nombre", "seguro"], 8, False),
-    ("Apartment Viewing – 1", ["apartamento", "llave", "precio"], 9, False),
-    ("Rent and Deposit – 1", ["renta", "depósito", "mes"], 10, False),
-    ("Utilities Question – 1", ["agua", "luz", "gas"], 11, False),
-    ("Broken Appliance – 1", ["problema", "cocina", "baño"], 12, False),
-    ("Traffic Stop – 1", ["policía", "licencia", "documento"], 13, False),
-    ("Passport Check – 1", ["pasaporte", "dirección", "número"], 14, False),
-    ("Receiving a Fine – 1", ["multa", "vehículo", "problema"], 15, False),
+    ("Checking in at the Airport – 1", ["vuelo", "pasaporte", "maleta"], 1, True),
+    ("Talking to the Mechanic – 1", ["coche", "problema", "reparar"], 2, True),
+    ("Shopping – 1", ["comprar", "precio", "tienda"], 3, True),
+    ("Small Talk – 1", ["hola", "cómo", "bien"], 4, True),
+    ("Talking to Home Reno Contractor – 1", ["contratista", "obra", "precio"], 5, True),
+    ("Card Not Working at Bank – 1", ["banco", "tarjeta", "problema"], 6, True),
+    ("Card Not Working at Bank – 2", ["cuenta", "dinero", "sistema"], 7, True),
+    ("ATM Not Dispensing Cash – 1", ["cajero", "efectivo", "número"], 8, True),
+    ("Opening an Account – 1", ["contrato", "firma", "documento"], 9, True),
+    ("Buying Medicine at Pharmacy – 1", ["farmacia", "medicina", "dolor"], 10, True),
+    ("Headache or Fever – 1", ["cabeza", "fiebre", "cuerpo"], 11, True),
+    ("Stomach Issue – 1", ["estómago", "agua", "pastilla"], 12, True),
+    ("Prescription Pickup – 1", ["receta", "nombre", "seguro"], 13, True),
+    ("Apartment Viewing – 1", ["apartamento", "llave", "precio"], 14, True),
+    ("Rent and Deposit – 1", ["renta", "depósito", "mes"], 15, True),
     ("Package Delivery – 1", ["paquete", "edificio", "puerta"], 16, False),
     ("Giving Directions – 1", ["izquierda", "derecha", "calle"], 17, False),
     ("Finding an Address – 1", ["dirección", "número", "piso"], 18, False),
@@ -96,6 +96,13 @@ SEED_DATA = [
 ]
 
 WORD_TRANSLATIONS = {
+    # New essential words
+    "vuelo": "flight", "pasaporte": "passport", "maleta": "suitcase",
+    "coche": "car", "reparar": "to repair",
+    "comprar": "to buy", "tienda": "store",
+    "hola": "hello", "cómo": "how", "bien": "well/good",
+    "contratista": "contractor", "obra": "construction/work",
+    # Existing words
     "banco": "bank", "tarjeta": "card", "problema": "problem",
     "cuenta": "account", "dinero": "money", "sistema": "system",
     "cajero": "ATM", "efectivo": "cash", "número": "number",
