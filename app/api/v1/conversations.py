@@ -161,24 +161,13 @@ Do not introduce new Spanish words.
 Do not mention target words explicitly - instead ask questions that would naturally require them.
 For example, to elicit "vuelo" (flight), ask "What is your flight number?" not "Can you say vuelo?"."""
     
-    # Build context about what words to elicit
+    # Build context about what words to elicit - create natural questions
     missing_word_context = []
     for word in words:
         if word.id not in (conversation.used_typed_word_ids or []):
-            # Create indirect prompts for each missing word
-            if word.spanish == "vuelo":
-                missing_word_context.append("Ask about their flight number or flight details")
-            elif word.spanish == "pasaporte":
-                missing_word_context.append("Ask to see their passport or passport number")
-            elif word.spanish == "maleta":
-                missing_word_context.append("Ask about their suitcase or luggage")
-            elif word.spanish == "equipaje":
-                missing_word_context.append("Ask about their luggage or baggage")
-            elif word.spanish == "salida":
-                missing_word_context.append("Ask about their departure gate or exit")
-            else:
-                # Generic fallback - ask about the concept
-                missing_word_context.append(f"Ask about {word.english} in a way that would require saying '{word.spanish}'")
+            # Create indirect prompts for each missing word based on English meaning
+            # The AI should ask questions that naturally require the Spanish word
+            missing_word_context.append(f"Elicit '{word.spanish}' ({word.english}) by asking a natural question about {word.english.lower()}")
     
     # Developer template
     user_prompt = f"""Situation: {situation.title}
