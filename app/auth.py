@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -9,47 +9,37 @@ from app.config import settings
 from app.database import get_db
 from app.models import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__ident="2b")
 security = HTTPBearer()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against a hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(
+        plain_password.encode('utf-8'),
+        hashed_password.encode('utf-8')
+    )
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password using bcrypt via passlib"""
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    # Ensure password is a plain string
+    """Hash a password using bcrypt directly"""
+    # Ensure password is a string
     if not isinstance(password, str):
         password = str(password)
     
-    # Debug: log password info
+    # Bcrypt has a 72-byte limit - truncate if needed
     password_bytes = password.encode('utf-8')
-    logger.info(f"Password length: {len(password)} chars, {len(password_bytes)} bytes")
-    
-    # Bcrypt has a 72-byte limit - check and truncate if needed
     if len(password_bytes) > 72:
-        logger.warning(f"Password exceeds 72 bytes, truncating from {len(password_bytes)} to 72")
-        # Truncate to 72 bytes, ensuring we don't break UTF-8 sequences
+        # Truncate to 72 bytes at UTF-8 boundary
         truncated = password_bytes[:72]
         # Remove any incomplete UTF-8 sequences at the end
         while truncated and (truncated[-1] & 0xC0) == 0x80:
             truncated = truncated[:-1]
-        password = truncated.decode('utf-8', errors='ignore')
-        logger.info(f"Truncated password length: {len(password)} chars")
+        password_bytes = truncated
     
-    # Hash with passlib (which uses bcrypt)
-    try:
-        result = pwd_context.hash(password)
-        logger.info("Password hashed successfully")
-        return result
-    except Exception as e:
-        logger.error(f"Password hashing failed: {e}, password type: {type(password)}, length: {len(password)}")
-        raise
+    # Hash with bcrypt
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
