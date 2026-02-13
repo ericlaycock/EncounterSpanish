@@ -1,11 +1,13 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
+import warnings
 
 
 class Settings(BaseSettings):
     database_url: str
     openai_api_key: str
-    jwt_secret: str
+    jwt_secret: str = "CHANGE_THIS_IN_PRODUCTION"  # Default for development
     jwt_algorithm: str = "HS256"
     jwt_expiration_hours: int = 24
     
@@ -15,4 +17,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Warn if using default JWT secret
+if settings.jwt_secret == "CHANGE_THIS_IN_PRODUCTION":
+    warnings.warn(
+        "WARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable for production!",
+        UserWarning
+    )
+
+
 
