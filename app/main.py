@@ -22,29 +22,37 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup: Run migrations and wake up the app
     print("🚀 Encounter Spanish API starting up...")
-    try:
-        from alembic.config import Config
-        from alembic import command
-        
-        print("📦 Running database migrations...")
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        print("✅ Database migrations complete")
-    except Exception as e:
-        print(f"⚠️  Migration error (continuing anyway): {e}")
-        import traceback
-        traceback.print_exc()
-        # Fallback: create tables if migrations fail
+    
+    # Test database connection first with retries
+    from app.database import test_connection
+    db_connected = test_connection(max_retries=5, retry_delay=3)
+    
+    if db_connected:
         try:
-            print("📦 Creating tables directly...")
-            Base.metadata.create_all(bind=engine)
-            print("✅ Tables created")
-        except Exception as e2:
-            print(f"❌ Failed to create tables: {e2}")
+            from alembic.config import Config
+            from alembic import command
+            
+            print("📦 Running database migrations...")
+            alembic_cfg = Config("alembic.ini")
+            command.upgrade(alembic_cfg, "head")
+            print("✅ Database migrations complete")
+        except Exception as e:
+            logger.warning(f"⚠️  Migration error (continuing anyway): {e}")
             import traceback
             traceback.print_exc()
-            # Don't crash - let the app start anyway
-            print("⚠️  App will start without database tables. Migrations can be run manually.")
+            # Fallback: create tables if migrations fail
+            try:
+                print("📦 Creating tables directly...")
+                Base.metadata.create_all(bind=engine)
+                print("✅ Tables created")
+            except Exception as e2:
+                logger.error(f"❌ Failed to create tables: {e2}")
+                import traceback
+                traceback.print_exc()
+                print("⚠️  App will start without database tables. Migrations can be run manually.")
+    else:
+        logger.warning("⚠️  Database not available at startup. App will start but database operations may fail.")
+        logger.warning("⚠️  This is normal if the database is still provisioning. It will be available shortly.")
     
     yield
     # Shutdown
