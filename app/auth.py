@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import get_db
 from app.models import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__ident="2b")
 security = HTTPBearer()
 
 
@@ -19,23 +19,24 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password"""
-    # Ensure password is a string
-    if not isinstance(password, str):
-        password = str(password)
-    
-    # Bcrypt has a 72-byte limit - truncate if necessary
-    # Convert to bytes to check actual byte length
-    password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Truncate to 72 bytes and decode back
-        truncated_bytes = password_bytes[:72]
-        # Find the last valid UTF-8 character boundary
-        while truncated_bytes and truncated_bytes[-1] & 0xC0 == 0x80:
-            truncated_bytes = truncated_bytes[:-1]
-        password = truncated_bytes.decode('utf-8', errors='ignore')
-    
-    return pwd_context.hash(password)
+    """Hash a password using bcrypt via passlib"""
+    # Passlib should handle bcrypt's 72-byte limit automatically
+    # But if it doesn't, we'll truncate manually
+    try:
+        return pwd_context.hash(password)
+    except ValueError as e:
+        # If password is too long, truncate to 72 bytes
+        if "72 bytes" in str(e):
+            password_bytes = password.encode('utf-8')
+            if len(password_bytes) > 72:
+                # Truncate to 72 bytes at UTF-8 boundary
+                truncated = password_bytes[:72]
+                # Remove any incomplete UTF-8 sequences at the end
+                while truncated and truncated[-1] & 0xC0 == 0x80:
+                    truncated = truncated[:-1]
+                password = truncated.decode('utf-8', errors='ignore')
+            return pwd_context.hash(password)
+        raise
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
