@@ -44,62 +44,66 @@ SITUATIONS = [
     {"id": "apt_viewing_1", "title": "Apartment Viewing – 1", "order_index": 14, "is_free": True},
     {"id": "apt_rent_1", "title": "Rent and Deposit – 1", "order_index": 15, "is_free": True},
     
-    # DELIVERY / DIRECTIONS (16-18) - PREMIUM
-    {"id": "delivery_package_1", "title": "Package Delivery – 1", "order_index": 16, "is_free": False},
-    {"id": "delivery_directions_1", "title": "Giving Directions – 1", "order_index": 17, "is_free": False},
-    {"id": "delivery_address_1", "title": "Finding an Address – 1", "order_index": 18, "is_free": False},
+    # PREMIUM SITUATIONS (16-50)
+    {"id": "apt_utilities_1", "title": "Utilities Question – 1", "order_index": 16, "is_free": False},
+    {"id": "apt_appliance_1", "title": "Broken Appliance – 1", "order_index": 17, "is_free": False},
     
-    # RESTAURANT / FOOD (19-21) - PREMIUM
-    {"id": "rest_coffee_1", "title": "Ordering Coffee – 1", "order_index": 19, "is_free": False},
-    {"id": "rest_menu_1", "title": "Reading the Menu – 1", "order_index": 20, "is_free": False},
-    {"id": "rest_diet_1", "title": "Diet Restriction – 1", "order_index": 21, "is_free": False},
+    # DELIVERY / DIRECTIONS (18-20) - PREMIUM
+    {"id": "delivery_package_1", "title": "Package Delivery – 1", "order_index": 18, "is_free": False},
+    {"id": "delivery_directions_1", "title": "Giving Directions – 1", "order_index": 19, "is_free": False},
+    {"id": "delivery_address_1", "title": "Finding an Address – 1", "order_index": 20, "is_free": False},
     
-    # TRANSPORT (22-24) - PREMIUM
-    {"id": "transport_taxi_1", "title": "Taking a Taxi – 1", "order_index": 22, "is_free": False},
-    {"id": "transport_bus_1", "title": "Bus Ticket – 1", "order_index": 23, "is_free": False},
-    {"id": "transport_ride_1", "title": "Ride App Confusion – 1", "order_index": 24, "is_free": False},
+    # RESTAURANT / FOOD (21-23) - PREMIUM
+    {"id": "rest_coffee_1", "title": "Ordering Coffee – 1", "order_index": 21, "is_free": False},
+    {"id": "rest_menu_1", "title": "Reading the Menu – 1", "order_index": 22, "is_free": False},
+    {"id": "rest_diet_1", "title": "Diet Restriction – 1", "order_index": 23, "is_free": False},
     
-    # SHOPPING (25-27) - PREMIUM
-    {"id": "shop_grocery_1", "title": "Grocery Store – 1", "order_index": 25, "is_free": False},
-    {"id": "shop_cash_1", "title": "Paying with Cash – 1", "order_index": 26, "is_free": False},
-    {"id": "shop_clothing_1", "title": "Clothing Store – 1", "order_index": 27, "is_free": False},
+    # TRANSPORT (24-26) - PREMIUM
+    {"id": "transport_taxi_1", "title": "Taking a Taxi – 1", "order_index": 24, "is_free": False},
+    {"id": "transport_bus_1", "title": "Bus Ticket – 1", "order_index": 25, "is_free": False},
+    {"id": "transport_ride_1", "title": "Ride App Confusion – 1", "order_index": 26, "is_free": False},
     
-    # INTERNET / SERVICES (28-30) - PREMIUM
-    {"id": "internet_wifi_1", "title": "WiFi Not Working – 1", "order_index": 28, "is_free": False},
-    {"id": "internet_phone_1", "title": "Phone Plan – 1", "order_index": 29, "is_free": False},
-    {"id": "internet_repair_1", "title": "Repair Technician Visit – 1", "order_index": 30, "is_free": False},
+    # SHOPPING (27-29) - PREMIUM
+    {"id": "shop_grocery_1", "title": "Grocery Store – 1", "order_index": 27, "is_free": False},
+    {"id": "shop_cash_1", "title": "Paying with Cash – 1", "order_index": 28, "is_free": False},
+    {"id": "shop_clothing_1", "title": "Clothing Store – 1", "order_index": 29, "is_free": False},
     
-    # SOCIAL BASICS (31-33) - PREMIUM
-    {"id": "social_neighbor_1", "title": "Meeting a Neighbor – 1", "order_index": 31, "is_free": False},
-    {"id": "social_event_1", "title": "Small Talk at Event – 1", "order_index": 32, "is_free": False},
-    {"id": "social_dinner_1", "title": "Invited to Dinner – 1", "order_index": 33, "is_free": False},
+    # INTERNET / SERVICES (30-32) - PREMIUM
+    {"id": "internet_wifi_1", "title": "WiFi Not Working – 1", "order_index": 30, "is_free": False},
+    {"id": "internet_phone_1", "title": "Phone Plan – 1", "order_index": 31, "is_free": False},
+    {"id": "internet_repair_1", "title": "Repair Technician Visit – 1", "order_index": 32, "is_free": False},
     
-    # CHAT MODULES - VERBS (34-38) - PREMIUM
-    {"id": "chat_carlos_1", "title": "Chat with Carlos – 1", "order_index": 34, "is_free": False},
-    {"id": "chat_alejandra_1", "title": "Chat with Alejandra – 1", "order_index": 35, "is_free": False},
-    {"id": "chat_diego_1", "title": "Chat with Diego – 1", "order_index": 36, "is_free": False},
-    {"id": "chat_sofia_1", "title": "Chat with Sofia – 1", "order_index": 37, "is_free": False},
-    {"id": "chat_mateo_1", "title": "Chat with Mateo – 1", "order_index": 38, "is_free": False},
+    # SOCIAL BASICS (33-35) - PREMIUM
+    {"id": "social_neighbor_1", "title": "Meeting a Neighbor – 1", "order_index": 33, "is_free": False},
+    {"id": "social_event_1", "title": "Small Talk at Event – 1", "order_index": 34, "is_free": False},
+    {"id": "social_dinner_1", "title": "Invited to Dinner – 1", "order_index": 35, "is_free": False},
     
-    # CHAT MODULES - TIME (39-41) - PREMIUM
-    {"id": "chat_camila_1", "title": "Chat with Camila – 1", "order_index": 39, "is_free": False},
-    {"id": "chat_andres_1", "title": "Chat with Andrés – 1", "order_index": 40, "is_free": False},
-    {"id": "chat_valentina_1", "title": "Chat with Valentina – 1", "order_index": 41, "is_free": False},
+    # CHAT MODULES - VERBS (36-40) - PREMIUM
+    {"id": "chat_carlos_1", "title": "Chat with Carlos – 1", "order_index": 36, "is_free": False},
+    {"id": "chat_alejandra_1", "title": "Chat with Alejandra – 1", "order_index": 37, "is_free": False},
+    {"id": "chat_diego_1", "title": "Chat with Diego – 1", "order_index": 38, "is_free": False},
+    {"id": "chat_sofia_1", "title": "Chat with Sofia – 1", "order_index": 39, "is_free": False},
+    {"id": "chat_mateo_1", "title": "Chat with Mateo – 1", "order_index": 40, "is_free": False},
     
-    # CHAT MODULES - CONNECTORS (42-44) - PREMIUM
-    {"id": "chat_luis_1", "title": "Chat with Luis – 1", "order_index": 42, "is_free": False},
-    {"id": "chat_mariana_1", "title": "Chat with Mariana – 1", "order_index": 43, "is_free": False},
-    {"id": "chat_javier_1", "title": "Chat with Javier – 1", "order_index": 44, "is_free": False},
+    # CHAT MODULES - TIME (41-43) - PREMIUM
+    {"id": "chat_camila_1", "title": "Chat with Camila – 1", "order_index": 41, "is_free": False},
+    {"id": "chat_andres_1", "title": "Chat with Andrés – 1", "order_index": 42, "is_free": False},
+    {"id": "chat_valentina_1", "title": "Chat with Valentina – 1", "order_index": 43, "is_free": False},
     
-    # CHAT MODULES - PRONOUNS/ADVERBS (45-47) - PREMIUM
-    {"id": "chat_isabella_1", "title": "Chat with Isabella – 1", "order_index": 45, "is_free": False},
-    {"id": "chat_tomas_1", "title": "Chat with Tomás – 1", "order_index": 46, "is_free": False},
-    {"id": "chat_daniela_1", "title": "Chat with Daniela – 1", "order_index": 47, "is_free": False},
+    # CHAT MODULES - CONNECTORS (44-46) - PREMIUM
+    {"id": "chat_luis_1", "title": "Chat with Luis – 1", "order_index": 44, "is_free": False},
+    {"id": "chat_mariana_1", "title": "Chat with Mariana – 1", "order_index": 45, "is_free": False},
+    {"id": "chat_javier_1", "title": "Chat with Javier – 1", "order_index": 46, "is_free": False},
     
-    # CHAT MODULES - ADJECTIVES (48-50) - PREMIUM
-    {"id": "chat_pablo_1", "title": "Chat with Pablo – 1", "order_index": 48, "is_free": False},
-    {"id": "chat_lucia_1", "title": "Chat with Lucía – 1", "order_index": 49, "is_free": False},
-    {"id": "chat_martin_1", "title": "Chat with Martín – 1", "order_index": 50, "is_free": False},
+    # CHAT MODULES - PRONOUNS/ADVERBS (47-49) - PREMIUM
+    {"id": "chat_isabella_1", "title": "Chat with Isabella – 1", "order_index": 47, "is_free": False},
+    {"id": "chat_tomas_1", "title": "Chat with Tomás – 1", "order_index": 48, "is_free": False},
+    {"id": "chat_daniela_1", "title": "Chat with Daniela – 1", "order_index": 49, "is_free": False},
+    
+    # CHAT MODULES - ADJECTIVES (50) - PREMIUM
+    {"id": "chat_pablo_1", "title": "Chat with Pablo – 1", "order_index": 50, "is_free": False},
+    {"id": "chat_lucia_1", "title": "Chat with Lucía – 1", "order_index": 51, "is_free": False},
+    {"id": "chat_martin_1", "title": "Chat with Martín – 1", "order_index": 52, "is_free": False},
 ]
 
 # All words with their Spanish and English
