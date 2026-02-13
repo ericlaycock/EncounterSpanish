@@ -118,3 +118,5 @@ class Conversation(Base):
     user = relationship("User", back_populates="conversations")
     situation = relationship("Situation", back_populates="conversations")
 
+
+

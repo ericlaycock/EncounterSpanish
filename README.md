@@ -211,3 +211,5 @@ API documentation with interactive testing available at `/docs` when server is r
 Proprietary - All rights reserved
 
 # EncounterSpanish
+
+

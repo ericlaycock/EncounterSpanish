@@ -14,3 +14,5 @@ def get_current_user_dependency() -> User:
     """Dependency for current authenticated user"""
     return Depends(get_current_user)
 
+
+

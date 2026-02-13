@@ -67,3 +67,5 @@ async def mark_typed_correct(
     db.commit()
     return {"message": "Updated"}
 
+
+

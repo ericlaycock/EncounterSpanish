@@ -93,11 +93,8 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     return user
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-) -> User:
-    """Get the current authenticated user from JWT token"""
+def get_user_from_token(token: str, db: Session) -> User:
+    """Helper function to get user from JWT token"""
     import logging
     logger = logging.getLogger(__name__)
     
@@ -108,7 +105,6 @@ async def get_current_user(
     )
     
     try:
-        token = credentials.credentials
         logger.info(f"Validating token: {token[:20]}...")
         payload = jwt.decode(
             token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
@@ -131,6 +127,28 @@ async def get_current_user(
     
     logger.info(f"User authenticated: {user.email}")
     return user
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """Get the current authenticated user from JWT token in Authorization header"""
+    return get_user_from_token(credentials.credentials, db)
+
+
+async def get_current_user_from_query(
+    token: str = None,
+    db: Session = Depends(get_db)
+) -> User:
+    """Get the current authenticated user from JWT token in query parameter (for SSE)"""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return get_user_from_token(token, db)
 
 
 

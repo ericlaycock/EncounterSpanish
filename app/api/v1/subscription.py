@@ -18,3 +18,5 @@ async def get_subscription_status_endpoint(
     status_info = get_subscription_status(db, str(current_user.id))
     return SubscriptionStatusResponse(**status_info)
 
+
+

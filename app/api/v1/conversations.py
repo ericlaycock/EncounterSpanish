@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_user_from_query
 from app.models import User, Conversation, Situation, SituationWord, Word
 from app.schemas import (
     CreateConversationRequest,
@@ -119,10 +119,12 @@ async def send_message(
 @router.get("/{conversation_id}/stream")
 async def stream_conversation(
     conversation_id: str,
-    current_user: User = Depends(get_current_user),
+    token: str = Query(..., description="JWT token for authentication"),
+    current_user: User = Depends(get_current_user_from_query),
     db: Session = Depends(get_db)
 ):
-    """Stream assistant response for text mode conversation (SSE)"""
+    """Stream assistant response for text mode conversation (SSE)
+    Note: Token must be passed as query parameter since EventSource doesn't support headers"""
     conversation = db.query(Conversation).filter(
         Conversation.id == conversation_id,
         Conversation.user_id == current_user.id
@@ -167,8 +169,10 @@ Reply in English with a short question that nudges use of missing words."""
     
     async def generate():
         async for chunk in stream_text(system_prompt, user_prompt):
-            yield f"data: {json.dumps({'content': chunk})}\n\n"
-        yield "data: [DONE]\n\n"
+            # Frontend expects {text: string} format
+            yield f"data: {json.dumps({'text': chunk})}\n\n"
+        # Frontend expects {done: true} format
+        yield f"data: {json.dumps({'done': True})}\n\n"
     
     return StreamingResponse(
         generate(),
