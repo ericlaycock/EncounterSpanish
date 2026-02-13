@@ -40,15 +40,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware - Allow all origins including v0 preview domains
+# CORS middleware - Allow v0 preview domains and all origins for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://vm-tg70cu1fxyqwwlve3xrr0w.vusercontent.net",  # Specific v0 preview domain
-    ],
-    allow_origin_regex=r"https://.*\.vusercontent\.net",  # Allow all v0 preview subdomains
-    allow_credentials=True,  # Allow credentials for auth
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_origin_regex=r"https://.*\.vusercontent\.net|.*",  # Allow all v0 preview domains and any origin
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
