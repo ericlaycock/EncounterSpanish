@@ -22,11 +22,11 @@ RUN mkdir -p /tmp/audio
 EXPOSE 8000
 
 # Copy startup script
-COPY start.py /start.py
-RUN chmod +x /start.py
+COPY start.py start.py
+RUN chmod +x start.py
 
 # Run the application
-CMD ["python", "/start.py"]
+CMD ["python", "start.py"]
 
 
 
