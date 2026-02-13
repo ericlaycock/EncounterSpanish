@@ -6,14 +6,29 @@ from app.api.v1 import auth, subscription, situations, user_words, conversations
 from app.database import engine
 from app.models import Base
 
-# Create tables (in production, use migrations)
-# Base.metadata.create_all(bind=engine)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Wake up the app
+    # Startup: Run migrations and wake up the app
     print("🚀 Encounter Spanish API starting up...")
+    try:
+        from alembic.config import Config
+        from alembic import command
+        
+        print("📦 Running database migrations...")
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        print("✅ Database migrations complete")
+    except Exception as e:
+        print(f"⚠️  Migration error (continuing anyway): {e}")
+        # Fallback: create tables if migrations fail
+        try:
+            print("📦 Creating tables directly...")
+            Base.metadata.create_all(bind=engine)
+            print("✅ Tables created")
+        except Exception as e2:
+            print(f"❌ Failed to create tables: {e2}")
+    
     yield
     # Shutdown
     print("👋 Encounter Spanish API shutting down...")
