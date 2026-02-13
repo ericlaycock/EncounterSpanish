@@ -404,23 +404,30 @@ def seed_database():
     db: Session = SessionLocal()
     
     try:
-        # Clear existing data (delete in correct order to respect foreign keys)
+        # Upsert words (update if exists, insert if not)
+        print("Inserting/updating words...")
+        words_created = 0
+        words_updated = 0
+        for word_data in WORDS:
+            existing = db.query(Word).filter(Word.id == word_data['id']).first()
+            if existing:
+                existing.spanish = word_data['spanish']
+                existing.english = word_data['english']
+                words_updated += 1
+            else:
+                word = Word(**word_data)
+                db.add(word)
+                words_created += 1
+        db.commit()
+        print(f"Created {words_created} words, updated {words_updated} words")
+        
+        # Clear situation-word mappings and situations (but keep words)
         from app.models import Conversation, UserSituation, UserWord
         db.query(SituationWord).delete()
         db.query(Conversation).delete()  # Delete conversations first
         db.query(UserSituation).delete()  # Delete user situations
         db.query(Situation).delete()
-        db.query(UserWord).delete()  # Delete user words before words
-        db.query(Word).delete()
         db.commit()
-        
-        # Insert words
-        print("Inserting words...")
-        for word_data in WORDS:
-            word = Word(**word_data)
-            db.add(word)
-        db.commit()
-        print(f"Inserted {len(WORDS)} words")
         
         # Insert situations
         print("Inserting situations...")
