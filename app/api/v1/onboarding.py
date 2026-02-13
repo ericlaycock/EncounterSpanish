@@ -67,39 +67,66 @@ async def get_available_categories(
     db: Session = Depends(get_db)
 ):
     """Get list of available situation categories for onboarding"""
-    categories = db.query(Situation.category).distinct().order_by(Situation.category).all()
     
-    # Map category IDs to display names
-    category_map = {
-        "banking": "Banking",
-        "small_talk": "Small Talk",
-        "groceries": "Groceries",
-        "pharmacy": "Pharmacy",
-        "apartment": "Apartment",
-        "police": "Police",
-        "delivery": "Delivery",
-        "restaurant": "Restaurant",
-        "transport": "Transport",
-        "shopping": "Shopping",
-        "internet": "Internet",
-        "social": "Social",
-        "mechanic": "Mechanic",
-        "contractor": "Home Renovation",
-        "airport": "Airport",
-        "hardware": "Hardware Store",
-        "clothing": "Clothing Shopping",
-        "chat": "Chat Practice",
+    # Only show these 10 categories for onboarding
+    allowed_categories = {
+        "airport": {
+            "name": "Airport",
+            "description": "Checking in, going through security"
+        },
+        "banking": {
+            "name": "Banking",
+            "description": "Withdrawing cash, currency exchange"
+        },
+        "clothing": {
+            "name": "Clothing Shopping",
+            "description": "Finding sizes, trying on clothes"
+        },
+        "internet": {
+            "name": "Internet",
+            "description": "Setting up WiFi, phone plans"
+        },
+        "small_talk": {
+            "name": "Small Talk",
+            "description": "Meeting neighbors, casual conversations"
+        },
+        "contractor": {
+            "name": "Home Renovation",
+            "description": "Hiring contractors, discussing work"
+        },
+        "groceries": {
+            "name": "Groceries",
+            "description": "Shopping for food, asking for items"
+        },
+        "mechanic": {
+            "name": "Mechanic",
+            "description": "Car repairs, maintenance issues"
+        },
+        "police": {
+            "name": "Police Stop",
+            "description": "Traffic stops, document checks"
+        },
+        "restaurant": {
+            "name": "Eating Out",
+            "description": "Ordering food, reading menus"
+        },
     }
     
     result = []
-    for cat_tuple in categories:
-        cat_id = cat_tuple[0]
-        result.append({
-            "id": cat_id,
-            "name": category_map.get(cat_id, cat_id.replace("_", " ").title()),
-            "description": f"Practice {category_map.get(cat_id, cat_id)} situations"
-        })
+    for cat_id, cat_info in allowed_categories.items():
+        # Verify category exists in database
+        exists = db.query(Situation).filter(Situation.category == cat_id).first()
+        if exists:
+            result.append({
+                "id": cat_id,
+                "name": cat_info["name"],
+                "description": cat_info["description"]
+            })
+    
+    # Sort by name for consistent ordering
+    result.sort(key=lambda x: x["name"])
     
     return {"categories": result}
+
 
 
