@@ -2,7 +2,6 @@ from openai import OpenAI
 from typing import AsyncGenerator, List, Dict, Union
 import json
 import io
-import tempfile
 from app.config import settings
 
 client = OpenAI(api_key=settings.openai_api_key)
