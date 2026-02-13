@@ -269,18 +269,7 @@ Return JSON with keys:
     missing_word_context = []
     for word in words:
         if word.id not in (conversation.used_spoken_word_ids or []):
-            if word.spanish == "vuelo":
-                missing_word_context.append("Ask about their flight number or flight details")
-            elif word.spanish == "pasaporte":
-                missing_word_context.append("Ask to see their passport or passport number")
-            elif word.spanish == "maleta":
-                missing_word_context.append("Ask about their suitcase or luggage")
-            elif word.spanish == "equipaje":
-                missing_word_context.append("Ask about their luggage or baggage")
-            elif word.spanish == "salida":
-                missing_word_context.append("Ask about their departure gate or exit")
-            else:
-                missing_word_context.append(f"Ask about {word.english} in a way that would require saying '{word.spanish}'")
+            missing_word_context.append(f"Elicit '{word.spanish}' ({word.english}) by asking a natural question about {word.english.lower()}")
     
     user_prompt = f"""Situation: {situation.title}
 Target Spanish words to elicit (DO NOT mention directly): {', '.join([w.spanish for w in words])}
