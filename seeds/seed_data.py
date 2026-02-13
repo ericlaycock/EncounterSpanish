@@ -404,7 +404,7 @@ def seed_database():
     db: Session = SessionLocal()
     
     try:
-        # Upsert words (update if exists, insert if not)
+        # Upsert words (update if exists, insert if not) - process individually to avoid conflicts
         print("Inserting/updating words...")
         words_created = 0
         words_updated = 0
@@ -418,7 +418,20 @@ def seed_database():
                 word = Word(**word_data)
                 db.add(word)
                 words_created += 1
-        db.commit()
+            # Commit after each to avoid batch insert conflicts
+            try:
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                # If it's a duplicate, just update it
+                existing = db.query(Word).filter(Word.id == word_data['id']).first()
+                if existing:
+                    existing.spanish = word_data['spanish']
+                    existing.english = word_data['english']
+                    db.commit()
+                    words_updated += 1
+                    if words_created > 0:
+                        words_created -= 1
         print(f"Created {words_created} words, updated {words_updated} words")
         
         # Clear situation-word mappings and situations (but keep words)
