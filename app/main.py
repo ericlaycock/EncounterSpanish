@@ -203,3 +203,44 @@ async def test_cors():
         "headers": "Check browser network tab for CORS headers"
     }
 
+
+@app.post("/seed")
+async def seed_database_endpoint():
+    """One-time endpoint to seed the database with situations and words"""
+    import subprocess
+    import sys
+    
+    try:
+        logger.info("🌱 Starting database seed via endpoint...")
+        # Run the standalone seed script
+        result = subprocess.run(
+            [sys.executable, "seed_standalone.py"],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+        
+        if result.returncode == 0:
+            logger.info("✅ Database seed completed successfully")
+            return {
+                "status": "success",
+                "message": "Database seeded successfully",
+                "output": result.stdout
+            }
+        else:
+            logger.error(f"❌ Database seed failed: {result.stderr}")
+            return {
+                "status": "error",
+                "message": "Database seed failed",
+                "error": result.stderr,
+                "output": result.stdout
+            }
+    except Exception as e:
+        logger.error(f"❌ Error running seed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
