@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 import logging
+import os
 from app.api.v1 import auth, subscription, situations, user_words, conversations
 from app.database import engine
 from app.models import Base
@@ -28,28 +29,53 @@ async def lifespan(app: FastAPI):
     db_connected = test_connection(max_retries=5, retry_delay=3)
     
     if db_connected:
-        try:
-            from alembic.config import Config
-            from alembic import command
-            
-            print("📦 Running database migrations...")
-            alembic_cfg = Config("alembic.ini")
-            command.upgrade(alembic_cfg, "head")
-            print("✅ Database migrations complete")
-        except Exception as e:
-            logger.warning(f"⚠️  Migration error (continuing anyway): {e}")
-            import traceback
-            traceback.print_exc()
-            # Fallback: create tables if migrations fail
+        # Only run migrations if AUTO_MIGRATE env var is set to "true"
+        # Otherwise, migrations should be run manually or via CI/CD
+        auto_migrate = os.environ.get("AUTO_MIGRATE", "false").lower() == "true"
+        
+        if auto_migrate:
             try:
-                print("📦 Creating tables directly...")
-                Base.metadata.create_all(bind=engine)
-                print("✅ Tables created")
-            except Exception as e2:
-                logger.error(f"❌ Failed to create tables: {e2}")
+                from alembic.config import Config
+                from alembic import command
+                from alembic.script import ScriptDirectory
+                from alembic.runtime.migration import MigrationContext
+                
+                print("📦 Checking database migrations...")
+                alembic_cfg = Config("alembic.ini")
+                
+                # Check if migrations are needed
+                with engine.connect() as connection:
+                    context = MigrationContext.configure(connection)
+                    current_rev = context.get_current_revision()
+                    script = ScriptDirectory.from_config(alembic_cfg)
+                    head_rev = script.get_current_head()
+                    
+                    if current_rev != head_rev:
+                        print(f"📦 Database is at revision {current_rev}, upgrading to {head_rev}...")
+                        command.upgrade(alembic_cfg, "head")
+                        print("✅ Database migrations complete")
+                    else:
+                        print("✅ Database is up to date, no migrations needed")
+            except Exception as e:
+                logger.warning(f"⚠️  Migration error (continuing anyway): {e}")
                 import traceback
                 traceback.print_exc()
-                print("⚠️  App will start without database tables. Migrations can be run manually.")
+                # Fallback: create tables if migrations fail and no tables exist
+                try:
+                    from sqlalchemy import inspect
+                    inspector = inspect(engine)
+                    tables = inspector.get_table_names()
+                    if not tables:
+                        print("📦 No tables found, creating tables directly...")
+                        Base.metadata.create_all(bind=engine)
+                        print("✅ Tables created")
+                except Exception as e2:
+                    logger.error(f"❌ Failed to create tables: {e2}")
+                    import traceback
+                    traceback.print_exc()
+                    print("⚠️  App will start without database tables. Migrations can be run manually.")
+        else:
+            logger.info("ℹ️  Auto-migration disabled. Run migrations manually with: alembic upgrade head")
     else:
         logger.warning("⚠️  Database not available at startup. App will start but database operations may fail.")
         logger.warning("⚠️  This is normal if the database is still provisioning. It will be available shortly.")
