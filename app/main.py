@@ -28,28 +28,27 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=[
+        "*",  # Allow all origins for development/preview
+        "https://vm-tg70cu1fxyqwwlve3xrr0w.vusercontent.net",
+        "https://*.vusercontent.net",  # v0 preview domains
+    ],
+    allow_origin_regex=r"https://.*\.vusercontent\.net",  # Allow all v0 preview subdomains
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Mount static files for audio
 app.mount("/audio", StaticFiles(directory="/tmp/audio"), name="audio")
 
-# Include routers with /v1 prefix
+# Include routers
 app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
 app.include_router(subscription.router, prefix="/v1/subscription", tags=["subscription"])
 app.include_router(situations.router, prefix="/v1/situations", tags=["situations"])
 app.include_router(user_words.router, prefix="/v1/user/words", tags=["user-words"])
 app.include_router(conversations.router, prefix="/v1/conversations", tags=["conversations"])
-
-# Include routers without /v1 prefix for frontend compatibility
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
-app.include_router(situations.router, prefix="/situations", tags=["situations"])
-app.include_router(user_words.router, prefix="/user/words", tags=["user-words"])
-app.include_router(conversations.router, prefix="/conversations", tags=["conversations"])
 
 
 @app.get("/")
