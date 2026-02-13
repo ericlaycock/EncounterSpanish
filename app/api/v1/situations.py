@@ -56,6 +56,9 @@ async def get_situation(
     db: Session = Depends(get_db)
 ):
     """Get situation details with words"""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"🔍 GET /v1/situations/{situation_id} - User: {current_user.id}")
     situation = db.query(Situation).filter(Situation.id == situation_id).first()
     if not situation:
         raise HTTPException(

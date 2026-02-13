@@ -70,12 +70,19 @@ app.add_middleware(
 # Manual CORS handler - ensures headers are set even on exceptions
 @app.middleware("http")
 async def add_cors_header(request: Request, call_next):
+    import traceback
     try:
+        logger.info(f"📥 {request.method} {request.url.path} - Headers: {dict(request.headers)}")
         response = await call_next(request)
+        logger.info(f"📤 {request.method} {request.url.path} - Status: {response.status_code}")
     except Exception as e:
+        # Log the full error with traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"❌ ERROR in {request.method} {request.url.path}: {str(e)}")
+        logger.error(f"📋 Full traceback:\n{error_trace}")
         # Create error response with CORS headers
         response = JSONResponse(
-            content={"detail": str(e)},
+            content={"detail": str(e), "error_type": type(e).__name__},
             status_code=500,
         )
     
@@ -89,8 +96,11 @@ async def add_cors_header(request: Request, call_next):
 # Global exception handlers with CORS
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    import traceback
+    logger.warning(f"⚠️  HTTPException {exc.status_code} on {request.method} {request.url.path}: {exc.detail}")
+    logger.debug(f"📋 Traceback:\n{traceback.format_exc()}")
     return JSONResponse(
-        content={"detail": exc.detail},
+        content={"detail": exc.detail, "status_code": exc.status_code},
         status_code=exc.status_code,
         headers={
             "Access-Control-Allow-Origin": "*",
@@ -101,8 +111,12 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    import traceback
+    logger.warning(f"⚠️  ValidationError 422 on {request.method} {request.url.path}")
+    logger.warning(f"📋 Validation errors: {exc.errors()}")
+    logger.debug(f"📋 Traceback:\n{traceback.format_exc()}")
     return JSONResponse(
-        content={"detail": exc.errors()},
+        content={"detail": exc.errors(), "status_code": 422},
         status_code=422,
         headers={
             "Access-Control-Allow-Origin": "*",
@@ -113,8 +127,18 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
+    import traceback
+    error_trace = traceback.format_exc()
+    logger.error(f"❌ UNHANDLED EXCEPTION on {request.method} {request.url.path}")
+    logger.error(f"❌ Exception type: {type(exc).__name__}")
+    logger.error(f"❌ Exception message: {str(exc)}")
+    logger.error(f"📋 Full traceback:\n{error_trace}")
     return JSONResponse(
-        content={"detail": "Internal server error"},
+        content={
+            "detail": "Internal server error",
+            "error_type": type(exc).__name__,
+            "error_message": str(exc)
+        },
         status_code=500,
         headers={
             "Access-Control-Allow-Origin": "*",
@@ -140,11 +164,18 @@ async def options_handler(request: Request, full_path: str):
 app.mount("/audio", StaticFiles(directory="/tmp/audio"), name="audio")
 
 # Include routers
+logger.info("🔗 Registering API routes...")
 app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
+logger.info("  ✅ /v1/auth")
 app.include_router(subscription.router, prefix="/v1/subscription", tags=["subscription"])
+logger.info("  ✅ /v1/subscription")
 app.include_router(situations.router, prefix="/v1/situations", tags=["situations"])
+logger.info("  ✅ /v1/situations (GET /, GET /{id}, POST /{id}/start, POST /{id}/complete)")
 app.include_router(user_words.router, prefix="/v1/user/words", tags=["user-words"])
+logger.info("  ✅ /v1/user/words")
 app.include_router(conversations.router, prefix="/v1/conversations", tags=["conversations"])
+logger.info("  ✅ /v1/conversations (POST /, POST /{id}/messages, GET /{id}/stream, POST /{id}/voice-turn)")
+logger.info("✅ All routes registered")
 
 
 @app.get("/")

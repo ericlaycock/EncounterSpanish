@@ -31,6 +31,9 @@ async def create_conversation(
     db: Session = Depends(get_db)
 ):
     """Create a new conversation"""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"🔍 POST /v1/conversations - User: {current_user.id}, Situation: {request.situation_id}, Mode: {request.mode}")
     situation = db.query(Situation).filter(Situation.id == request.situation_id).first()
     if not situation:
         raise HTTPException(
