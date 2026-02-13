@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 from app.api.v1 import auth, subscription, situations, user_words, conversations
 from app.database import engine
@@ -41,28 +43,73 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware - Allow all origins (including v0 preview domains)
+# CORS middleware - MUST be added first, before any other middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    allow_credentials=False,  # Must be False when using ["*"]
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
-# Manual CORS handler for errors (ensures CORS headers are always set)
+# Manual CORS handler - ensures headers are set even on exceptions
 @app.middleware("http")
 async def add_cors_header(request: Request, call_next):
-    response = await call_next(request)
-    # Always add CORS headers
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        # Create error response with CORS headers
+        response = JSONResponse(
+            content={"detail": str(e)},
+            status_code=500,
+        )
+    
+    # Always add CORS headers to every response
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
     response.headers["Access-Control-Allow-Headers"] = "*"
     response.headers["Access-Control-Expose-Headers"] = "*"
     return response
 
-# Handle OPTIONS preflight requests
+# Global exception handlers with CORS
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        content={"detail": exc.detail},
+        status_code=exc.status_code,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        content={"detail": exc.errors()},
+        status_code=422,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        content={"detail": "Internal server error"},
+        status_code=500,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+# Handle OPTIONS preflight requests explicitly
 @app.options("/{full_path:path}")
 async def options_handler(request: Request, full_path: str):
     return JSONResponse(
