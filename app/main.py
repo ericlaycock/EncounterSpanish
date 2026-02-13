@@ -49,13 +49,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware - Use function to allow all origins
-def allow_all_origins(origin: str) -> bool:
-    return True
-
+# CORS middleware - Allow all origins using regex
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_func=allow_all_origins,  # Use function to allow all origins
+    allow_origin_regex=r".*",  # Match any origin
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
