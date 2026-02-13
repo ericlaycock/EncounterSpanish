@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.api.v1 import auth, subscription, situations, user_words, conversations
 from app.database import engine
@@ -41,15 +42,38 @@ app = FastAPI(
 )
 
 # CORS middleware - Allow all origins (including v0 preview domains)
-# Using a permissive regex that matches any origin
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r".*",  # Match any origin (http, https, any domain)
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False when using ["*"]
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Manual CORS handler for errors (ensures CORS headers are always set)
+@app.middleware("http")
+async def add_cors_header(request: Request, call_next):
+    response = await call_next(request)
+    # Always add CORS headers
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "*"
+    return response
+
+# Handle OPTIONS preflight requests
+@app.options("/{full_path:path}")
+async def options_handler(request: Request, full_path: str):
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 # Mount static files for audio
 app.mount("/audio", StaticFiles(directory="/tmp/audio"), name="audio")
