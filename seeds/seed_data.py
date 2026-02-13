@@ -404,9 +404,13 @@ def seed_database():
     db: Session = SessionLocal()
     
     try:
-        # Clear existing data (optional - comment out if you want to keep existing data)
+        # Clear existing data (delete in correct order to respect foreign keys)
+        from app.models import Conversation, UserSituation, UserWord
         db.query(SituationWord).delete()
+        db.query(Conversation).delete()  # Delete conversations first
+        db.query(UserSituation).delete()  # Delete user situations
         db.query(Situation).delete()
+        db.query(UserWord).delete()  # Delete user words before words
         db.query(Word).delete()
         db.commit()
         
