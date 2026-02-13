@@ -75,24 +75,16 @@ async def get_selected_situations(
         
         # Map category ID to display name
         category_map = {
-            "banking": "Banking",
-            "small_talk": "Small Talk",
-            "groceries": "Groceries",
-            "pharmacy": "Pharmacy",
-            "apartment": "Apartment",
-            "police": "Police",
-            "delivery": "Delivery",
-            "restaurant": "Restaurant",
-            "transport": "Transport",
-            "shopping": "Shopping",
-            "internet": "Internet",
-            "social": "Social",
-            "mechanic": "Mechanic",
-            "contractor": "Home Renovation",
             "airport": "Airport",
-            "hardware": "Hardware Store",
+            "banking": "Banking",
             "clothing": "Clothing Shopping",
-            "chat": "Chat Practice",
+            "internet": "Internet",
+            "small_talk": "Small Talk",
+            "contractor": "Home Renovation",
+            "groceries": "Groceries",
+            "mechanic": "Mechanic",
+            "police": "Police Stop",
+            "restaurant": "Eating Out",
         }
         
         result.append(SelectedSituationProgress(
