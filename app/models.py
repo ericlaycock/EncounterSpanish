@@ -41,6 +41,8 @@ class Word(Base):
     id = Column(String, primary_key=True)
     spanish = Column(String, nullable=False)
     english = Column(String, nullable=False)
+    word_category = Column(String, nullable=True)  # 'encounter' or 'high_frequency'
+    frequency_rank = Column(Integer, nullable=True)  # Rank in frequency list (1-1000)
     
     # Relationships
     situation_words = relationship("SituationWord", back_populates="word")

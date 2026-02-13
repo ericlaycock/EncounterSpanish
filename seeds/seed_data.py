@@ -437,10 +437,14 @@ def seed_database():
         words_created = 0
         words_updated = 0
         for word_data in WORDS:
+            # Mark all encounter words with word_category='encounter'
+            word_data['word_category'] = 'encounter'
+            
             existing = db.query(Word).filter(Word.id == word_data['id']).first()
             if existing:
                 existing.spanish = word_data['spanish']
                 existing.english = word_data['english']
+                existing.word_category = 'encounter'
                 words_updated += 1
             else:
                 word = Word(**word_data)
