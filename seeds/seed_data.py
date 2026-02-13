@@ -413,25 +413,32 @@ def seed_database():
             if existing:
                 existing.spanish = word_data['spanish']
                 existing.english = word_data['english']
+                db.flush()  # Flush to ensure update is staged
                 words_updated += 1
             else:
                 word = Word(**word_data)
                 db.add(word)
+                db.flush()  # Flush immediately to catch duplicates
                 words_created += 1
-            # Commit after each to avoid batch insert conflicts
-            try:
-                db.commit()
-            except Exception as e:
-                db.rollback()
-                # If it's a duplicate, just update it
+        # Commit all at once after processing individually
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            # If batch commit failed, process one by one
+            print(f"Batch commit failed, processing individually: {e}")
+            for word_data in WORDS:
                 existing = db.query(Word).filter(Word.id == word_data['id']).first()
                 if existing:
                     existing.spanish = word_data['spanish']
                     existing.english = word_data['english']
+                else:
+                    word = Word(**word_data)
+                    db.add(word)
+                try:
                     db.commit()
-                    words_updated += 1
-                    if words_created > 0:
-                        words_created -= 1
+                except:
+                    db.rollback()
         print(f"Created {words_created} words, updated {words_updated} words")
         
         # Clear situation-word mappings and situations (but keep words)
