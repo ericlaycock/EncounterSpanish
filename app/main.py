@@ -24,6 +24,8 @@ async def lifespan(app: FastAPI):
         print("✅ Database migrations complete")
     except Exception as e:
         print(f"⚠️  Migration error (continuing anyway): {e}")
+        import traceback
+        traceback.print_exc()
         # Fallback: create tables if migrations fail
         try:
             print("📦 Creating tables directly...")
@@ -31,6 +33,10 @@ async def lifespan(app: FastAPI):
             print("✅ Tables created")
         except Exception as e2:
             print(f"❌ Failed to create tables: {e2}")
+            import traceback
+            traceback.print_exc()
+            # Don't crash - let the app start anyway
+            print("⚠️  App will start without database tables. Migrations can be run manually.")
     
     yield
     # Shutdown
