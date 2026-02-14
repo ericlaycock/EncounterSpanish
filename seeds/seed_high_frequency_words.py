@@ -17,25 +17,28 @@ from app.models import Word
 
 # The 1000 most common Spanish words from Wiktionary frequency list
 # Format: (rank, spanish_word, english_translation)
+# NOTE: Standalone grammar words (lo, te, le, se, me, nos, os, la, las, los, el, un, una) 
+# are excluded as they're too confusing for learners on their own.
+# They're only included when part of phrases (e.g., "porque", "del", "al").
 HIGH_FREQUENCY_WORDS = [
     (1, "que", "that, which, what"),
     (2, "de", "of, from"),
     (3, "no", "no, not"),
     (4, "a", "to, at"),
-    (5, "la", "the (feminine)"),
-    (6, "el", "the (masculine)"),
+    # (5, "la", "the (feminine)"),  # REMOVED: standalone article
+    # (6, "el", "the (masculine)"),  # REMOVED: standalone article
     (7, "es", "is"),
     (8, "y", "and"),
     (9, "en", "in, on"),
-    (10, "lo", "it, the"),
-    (11, "un", "a, an (masculine)"),
+    # (10, "lo", "it, the"),  # REMOVED: standalone pronoun/article
+    # (11, "un", "a, an (masculine)"),  # REMOVED: standalone article
     (12, "por", "for, by, through"),
     (13, "qué", "what"),
-    (14, "me", "me"),
-    (15, "una", "a, an (feminine)"),
-    (16, "te", "you (informal)"),
-    (17, "los", "the (masculine plural)"),
-    (18, "se", "oneself, itself"),
+    # (14, "me", "me"),  # REMOVED: standalone pronoun
+    # (15, "una", "a, an (feminine)"),  # REMOVED: standalone article
+    # (16, "te", "you (informal)"),  # REMOVED: standalone pronoun
+    # (17, "los", "the (masculine plural)"),  # REMOVED: standalone article
+    # (18, "se", "oneself, itself"),  # REMOVED: standalone pronoun
     (19, "con", "with"),
     (20, "para", "for, to"),
     (21, "mi", "my"),
@@ -45,15 +48,15 @@ HIGH_FREQUENCY_WORDS = [
     (25, "pero", "but"),
     (26, "yo", "I"),
     (27, "eso", "that"),
-    (28, "las", "the (feminine plural)"),
+    # (28, "las", "the (feminine plural)"),  # REMOVED: standalone article
     (29, "sí", "yes"),
     (30, "su", "his, her, your, their"),
     (31, "tu", "your (informal)"),
     (32, "aquí", "here"),
-    (33, "del", "of the, from the"),
-    (34, "al", "to the"),
+    (33, "del", "of the, from the"),  # KEPT: phrase
+    (34, "al", "to the"),  # KEPT: phrase
     (35, "como", "like, as, how"),
-    (36, "le", "him, her, you (formal)"),
+    # (36, "le", "him, her, you (formal)"),  # REMOVED: standalone pronoun
     (37, "más", "more"),
     (38, "esto", "this"),
     (39, "ya", "already, now"),
@@ -72,7 +75,7 @@ HIGH_FREQUENCY_WORDS = [
     (52, "hasta", "until, even"),
     (53, "desde", "since, from"),
     (54, "ver", "to see"),
-    (55, "porque", "because"),
+    (55, "porque", "because"),  # KEPT: phrase/word
     (57, "solo", "only, alone"),
     (58, "puede", "can, may"),
     (59, "todos", "all, everyone"),
@@ -112,7 +115,7 @@ HIGH_FREQUENCY_WORDS = [
     (93, "tan", "so, as"),
     (94, "donde", "where"),
     (95, "sino", "but rather"),
-    (96, "nos", "us"),
+    # (96, "nos", "us"),  # REMOVED: standalone pronoun
     (97, "ni", "neither, nor"),
     (98, "partir", "to leave, to start from"),
     (99, "falta", "lack, missing"),
@@ -120,6 +123,7 @@ HIGH_FREQUENCY_WORDS = [
     # Note: This is a representative sample. For production, populate all 1000 words
     # from https://en.wiktionary.org/wiki/Wiktionary:Frequency_lists/Spanish1000
     # The seed script will work with whatever words are in this list
+    # Grammar words removed: lo, te, le, se, me, nos, os, la, las, los, el, un, una
 ]
 
 def seed_high_frequency_words():
