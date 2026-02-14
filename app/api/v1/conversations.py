@@ -42,6 +42,52 @@ async def create_conversation(
             detail="Situation not found"
         )
     
+    # For voice mode, try to reuse words from existing text conversation
+    # This ensures both text and voice chat use the same high-frequency words
+    if request.mode == "voice":
+        existing_text_conv = db.query(Conversation).filter(
+            Conversation.user_id == current_user.id,
+            Conversation.situation_id == request.situation_id,
+            Conversation.mode == "text"
+        ).order_by(Conversation.created_at.desc()).first()
+        
+        if existing_text_conv and existing_text_conv.target_word_ids:
+            # Reuse the same words from text conversation
+            target_word_ids = existing_text_conv.target_word_ids
+            words = get_words_by_ids(db, target_word_ids)
+            
+            # Create voice conversation with same words
+            conversation = Conversation(
+                user_id=current_user.id,
+                situation_id=request.situation_id,
+                mode=request.mode,
+                target_word_ids=target_word_ids,
+                used_typed_word_ids=[],
+                used_spoken_word_ids=[]
+            )
+            db.add(conversation)
+            db.commit()
+            db.refresh(conversation)
+            
+            # Sort words: encounter words first, then high frequency
+            word_dict = {w.id: w for w in words}
+            # Get encounter words
+            situation_words = db.query(SituationWord).filter(
+                SituationWord.situation_id == request.situation_id
+            ).order_by(SituationWord.position).all()
+            encounter_word_ids = [sw.word_id for sw in situation_words]
+            high_freq_word_ids = [wid for wid in target_word_ids if wid not in encounter_word_ids]
+            
+            sorted_encounter_words = [word_dict[wid] for wid in encounter_word_ids if wid in word_dict]
+            sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids if wid in word_dict]
+            final_words = sorted_encounter_words + sorted_high_freq_words
+            
+            return CreateConversationResponse(
+                conversation_id=conversation.id,
+                words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+            )
+    
+    # For text mode or if no existing text conversation, create new with fresh word selection
     # Get 3 encounter words for this situation
     situation_words = db.query(SituationWord).filter(
         SituationWord.situation_id == request.situation_id
