@@ -9,7 +9,8 @@ from app.schemas import (
     CreateConversationResponse,
     MessageRequest,
     MessageResponse,
-    VoiceTurnResponse
+    VoiceTurnResponse,
+    WordSchema
 )
 from app.services.openai_service import generate_text, stream_text, transcribe_audio, generate_speech
 from app.services.word_detection import detect_words_in_text, get_words_by_ids
@@ -64,6 +65,16 @@ async def create_conversation(
     high_freq_word_ids = [w.id for w in high_freq_words]
     target_word_ids = encounter_word_ids + high_freq_word_ids
     
+    # Get all words for the response
+    all_word_ids = encounter_word_ids + high_freq_word_ids
+    all_words = db.query(Word).filter(Word.id.in_(all_word_ids)).all()
+    
+    # Sort: encounter words by position, then high frequency words
+    word_dict = {w.id: w for w in all_words}
+    sorted_encounter_words = [word_dict[wid] for wid in encounter_word_ids]
+    sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids]
+    final_words = sorted_encounter_words + sorted_high_freq_words
+    
     conversation = Conversation(
         user_id=current_user.id,
         situation_id=request.situation_id,
@@ -76,7 +87,10 @@ async def create_conversation(
     db.commit()
     db.refresh(conversation)
     
-    return CreateConversationResponse(conversation_id=conversation.id)
+    return CreateConversationResponse(
+        conversation_id=conversation.id,
+        words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+    )
 
 
 @router.post("/{conversation_id}/messages", response_model=MessageResponse)
