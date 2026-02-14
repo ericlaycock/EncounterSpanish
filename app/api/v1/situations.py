@@ -200,16 +200,31 @@ async def start_situation(
             detail={"error": error}
         )
     
-    # Get words for this situation
+    # Get 3 encounter words for this situation
     situation_words = db.query(SituationWord).filter(
         SituationWord.situation_id == situation_id
     ).order_by(SituationWord.position).all()
     
-    word_ids = [sw.word_id for sw in situation_words]
-    words = db.query(Word).filter(Word.id.in_(word_ids)).all()
+    encounter_word_ids = [sw.word_id for sw in situation_words]
+    encounter_words = db.query(Word).filter(Word.id.in_(encounter_word_ids)).all()
     
-    # Upsert user_words and increment seen_count
-    for word in words:
+    # Get 2 highest frequency words user hasn't learned yet
+    learned_word_ids = set(
+        word_id[0] for word_id in 
+        db.query(UserWord.word_id).filter(UserWord.user_id == current_user.id).all()
+    )
+    
+    # Get high frequency words user hasn't learned, ordered by frequency_rank
+    high_freq_words = db.query(Word).filter(
+        Word.word_category == 'high_frequency',
+        ~Word.id.in_(learned_word_ids) if learned_word_ids else True
+    ).order_by(Word.frequency_rank.asc().nullslast()).limit(2).all()
+    
+    # Combine: 3 encounter words + 2 high frequency words = 5 total
+    all_words = list(encounter_words) + list(high_freq_words)
+    
+    # Upsert user_words and increment seen_count for all words
+    for word in all_words:
         user_word = db.query(UserWord).filter(
             UserWord.user_id == current_user.id,
             UserWord.word_id == word.id
@@ -240,12 +255,13 @@ async def start_situation(
     
     db.commit()
     
-    # Sort words by position
-    word_dict = {w.id: w for w in words}
-    sorted_words = [word_dict[sw.word_id] for sw in situation_words]
+    # Sort encounter words by position, then append high frequency words
+    word_dict = {w.id: w for w in encounter_words}
+    sorted_encounter_words = [word_dict[sw.word_id] for sw in situation_words]
+    final_words = sorted_encounter_words + list(high_freq_words)
     
     return StartSituationResponse(
-        words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in sorted_words]
+        words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
     )
 
 

@@ -73,7 +73,6 @@ HIGH_FREQUENCY_WORDS = [
     (53, "desde", "since, from"),
     (54, "ver", "to see"),
     (55, "porque", "because"),
-    (56, "tu", "your (informal)"),
     (57, "solo", "only, alone"),
     (58, "puede", "can, may"),
     (59, "todos", "all, everyone"),
@@ -118,7 +117,9 @@ HIGH_FREQUENCY_WORDS = [
     (98, "partir", "to leave, to start from"),
     (99, "falta", "lack, missing"),
     (100, "lleva", "carries, takes"),
-    # Continuing with more words... (I'll add a script to fetch from the actual list)
+    # Note: This is a representative sample. For production, populate all 1000 words
+    # from https://en.wiktionary.org/wiki/Wiktionary:Frequency_lists/Spanish1000
+    # The seed script will work with whatever words are in this list
 ]
 
 def seed_high_frequency_words():
@@ -127,8 +128,18 @@ def seed_high_frequency_words():
     try:
         added_count = 0
         updated_count = 0
+        skipped_duplicates = 0
+        
+        # Track seen words to avoid duplicates
+        seen_words = set()
         
         for rank, spanish, english in HIGH_FREQUENCY_WORDS:
+            # Skip duplicates within the list
+            if spanish in seen_words:
+                skipped_duplicates += 1
+                continue
+            seen_words.add(spanish)
+            
             word_id = f"hf_{spanish}"
             
             # Check if word already exists
@@ -152,10 +163,16 @@ def seed_high_frequency_words():
                 )
                 db.add(new_word)
                 added_count += 1
+            
+            # Commit in batches to avoid memory issues
+            if (added_count + updated_count) % 50 == 0:
+                db.commit()
         
         db.commit()
         print(f"✅ Added {added_count} high frequency words")
         print(f"✅ Updated {updated_count} existing words")
+        if skipped_duplicates > 0:
+            print(f"⚠️  Skipped {skipped_duplicates} duplicate words in list")
         
     except Exception as e:
         db.rollback()
