@@ -41,11 +41,28 @@ async def create_conversation(
             detail="Situation not found"
         )
     
-    # Get target words for this situation
+    # Get 3 encounter words for this situation
     situation_words = db.query(SituationWord).filter(
         SituationWord.situation_id == request.situation_id
-    ).all()
-    target_word_ids = [sw.word_id for sw in situation_words]
+    ).order_by(SituationWord.position).all()
+    
+    encounter_word_ids = [sw.word_id for sw in situation_words]
+    
+    # Get 2 highest frequency words user hasn't learned yet
+    learned_word_ids = set(
+        word_id[0] for word_id in 
+        db.query(UserWord.word_id).filter(UserWord.user_id == current_user.id).all()
+    )
+    
+    # Get high frequency words user hasn't learned, ordered by frequency_rank
+    high_freq_words = db.query(Word).filter(
+        Word.word_category == 'high_frequency',
+        ~Word.id.in_(learned_word_ids) if learned_word_ids else True
+    ).order_by(Word.frequency_rank.asc().nullslast()).limit(2).all()
+    
+    # Combine: 3 encounter words + 2 high frequency words = 5 total
+    high_freq_word_ids = [w.id for w in high_freq_words]
+    target_word_ids = encounter_word_ids + high_freq_word_ids
     
     conversation = Conversation(
         user_id=current_user.id,
