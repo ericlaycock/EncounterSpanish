@@ -87,56 +87,81 @@ async def create_conversation(
                 words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
             )
     
-    # For text mode or if no existing text conversation, create new with fresh word selection
-    # Get 3 encounter words for this situation
-    situation_words = db.query(SituationWord).filter(
-        SituationWord.situation_id == request.situation_id
-    ).order_by(SituationWord.position).all()
+    # For text mode: reuse existing conversation created by startSituation
+    # startSituation is the single source of truth - it creates the conversation
+    existing_text_conv = db.query(Conversation).filter(
+        Conversation.user_id == current_user.id,
+        Conversation.situation_id == request.situation_id,
+        Conversation.mode == "text"
+    ).order_by(Conversation.created_at.desc()).first()
     
-    encounter_word_ids = [sw.word_id for sw in situation_words]
-    
-    # Get 2 highest frequency words user hasn't learned yet
-    learned_word_ids = set(
-        word_id[0] for word_id in 
-        db.query(UserWord.word_id).filter(UserWord.user_id == current_user.id).all()
-    )
-    
-    # Get high frequency words user hasn't learned, ordered by frequency_rank
-    high_freq_words = db.query(Word).filter(
-        Word.word_category == 'high_frequency',
-        ~Word.id.in_(learned_word_ids) if learned_word_ids else True
-    ).order_by(Word.frequency_rank.asc().nullslast()).limit(2).all()
-    
-    # Combine: 3 encounter words + 2 high frequency words = 5 total
-    high_freq_word_ids = [w.id for w in high_freq_words]
-    target_word_ids = encounter_word_ids + high_freq_word_ids
-    
-    # Get all words for the response
-    all_word_ids = encounter_word_ids + high_freq_word_ids
-    all_words = db.query(Word).filter(Word.id.in_(all_word_ids)).all()
-    
-    # Sort: encounter words by position, then high frequency words
-    word_dict = {w.id: w for w in all_words}
-    sorted_encounter_words = [word_dict[wid] for wid in encounter_word_ids]
-    sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids]
-    final_words = sorted_encounter_words + sorted_high_freq_words
-    
-    conversation = Conversation(
-        user_id=current_user.id,
-        situation_id=request.situation_id,
-        mode=request.mode,
-        target_word_ids=target_word_ids,
-        used_typed_word_ids=[],
-        used_spoken_word_ids=[]
-    )
-    db.add(conversation)
-    db.commit()
-    db.refresh(conversation)
-    
-    return CreateConversationResponse(
-        conversation_id=conversation.id,
-        words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
-    )
+    if existing_text_conv and existing_text_conv.target_word_ids:
+        # Reuse existing conversation's words
+        target_word_ids = existing_text_conv.target_word_ids
+        words = get_words_by_ids(db, target_word_ids)
+        
+        # Sort words: encounter words first, then high frequency
+        word_dict = {w.id: w for w in words}
+        situation_words = db.query(SituationWord).filter(
+            SituationWord.situation_id == request.situation_id
+        ).order_by(SituationWord.position).all()
+        encounter_word_ids = [sw.word_id for sw in situation_words]
+        high_freq_word_ids = [wid for wid in target_word_ids if wid not in encounter_word_ids]
+        
+        sorted_encounter_words = [word_dict[wid] for wid in encounter_word_ids if wid in word_dict]
+        sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids if wid in word_dict]
+        final_words = sorted_encounter_words + sorted_high_freq_words
+        
+        return CreateConversationResponse(
+            conversation_id=existing_text_conv.id,
+            words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+        )
+    else:
+        # No existing conversation - this shouldn't happen if startSituation was called first
+        # But create one anyway as fallback
+        situation_words = db.query(SituationWord).filter(
+            SituationWord.situation_id == request.situation_id
+        ).order_by(SituationWord.position).all()
+        
+        encounter_word_ids = [sw.word_id for sw in situation_words]
+        
+        learned_word_ids = set(
+            word_id[0] for word_id in 
+            db.query(UserWord.word_id).filter(UserWord.user_id == current_user.id).all()
+        )
+        
+        high_freq_words = db.query(Word).filter(
+            Word.word_category == 'high_frequency',
+            ~Word.id.in_(learned_word_ids) if learned_word_ids else True
+        ).order_by(Word.frequency_rank.asc().nullslast()).limit(2).all()
+        
+        high_freq_word_ids = [w.id for w in high_freq_words]
+        target_word_ids = encounter_word_ids + high_freq_word_ids
+        
+        all_word_ids = encounter_word_ids + high_freq_word_ids
+        all_words = db.query(Word).filter(Word.id.in_(all_word_ids)).all()
+        
+        word_dict = {w.id: w for w in all_words}
+        sorted_encounter_words = [word_dict[wid] for wid in encounter_word_ids]
+        sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids]
+        final_words = sorted_encounter_words + sorted_high_freq_words
+        
+        conversation = Conversation(
+            user_id=current_user.id,
+            situation_id=request.situation_id,
+            mode=request.mode,
+            target_word_ids=target_word_ids,
+            used_typed_word_ids=[],
+            used_spoken_word_ids=[]
+        )
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+        
+        return CreateConversationResponse(
+            conversation_id=conversation.id,
+            words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+        )
 
 
 @router.post("/{conversation_id}/messages", response_model=MessageResponse)
