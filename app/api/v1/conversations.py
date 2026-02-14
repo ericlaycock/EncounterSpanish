@@ -19,6 +19,7 @@ from app.services.conversation_service import (
     update_user_word_stats,
     get_missing_word_ids
 )
+from app.services.encounter_messages import get_initial_message_for_encounter
 from app.utils.audio import generate_audio_filename, get_audio_path, get_audio_url
 import json
 
@@ -82,9 +83,11 @@ async def create_conversation(
             sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids if wid in word_dict]
             final_words = sorted_encounter_words + sorted_high_freq_words
             
+            initial_message = get_initial_message_for_encounter(situation.title)
             return CreateConversationResponse(
                 conversation_id=conversation.id,
-                words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+                words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words],
+                initial_message=initial_message
             )
     
     # For text mode: reuse existing conversation created by startSituation
@@ -112,9 +115,11 @@ async def create_conversation(
         sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids if wid in word_dict]
         final_words = sorted_encounter_words + sorted_high_freq_words
         
+        initial_message = get_initial_message_for_encounter(situation.title)
         return CreateConversationResponse(
             conversation_id=existing_text_conv.id,
-            words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+            words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words],
+            initial_message=initial_message
         )
     else:
         # No existing conversation - this shouldn't happen if startSituation was called first
@@ -158,9 +163,11 @@ async def create_conversation(
         db.commit()
         db.refresh(conversation)
         
+        initial_message = get_initial_message_for_encounter(situation.title)
         return CreateConversationResponse(
             conversation_id=conversation.id,
-            words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+            words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words],
+            initial_message=initial_message
         )
 
 

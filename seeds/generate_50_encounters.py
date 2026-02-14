@@ -239,15 +239,15 @@ ENCOUNTERS_BY_CATEGORY = {
     
     "small_talk": [
         # 1-10: Greetings and introductions
-        {"title": "Meeting Someone New – 1", "words": ["hola", "mucho", "gusto"]},
+        {"title": "Meeting Someone New – 1", "words": ["hola", "mucho gusto", "nombre"]},
         {"title": "Meeting Someone New – 2", "words": ["nombre", "llamo", "tú"]},
         {"title": "Meeting Someone New – 3", "words": ["presentar", "amigo", "conocer"]},
         {"title": "Asking How They Are – 1", "words": ["cómo", "estás", "bien"]},
         {"title": "Asking How They Are – 2", "words": ["qué", "tal", "bien"]},
         {"title": "Responding to Greeting – 1", "words": ["bien", "gracias", "tú"]},
         {"title": "Responding to Greeting – 2", "words": ["muy", "bien", "gracias"]},
-        {"title": "Saying Goodbye – 1", "words": ["adiós", "hasta", "luego"]},
-        {"title": "Saying Goodbye – 2", "words": ["nos", "vemos", "pronto"]},
+        {"title": "Saying Goodbye – 1", "words": ["adiós", "hasta luego", "pronto"]},
+        {"title": "Saying Goodbye – 2", "words": ["nos vemos", "pronto", "chao"]},
         {"title": "Saying Goodbye – 3", "words": ["chao", "cuídate", "adiós"]},
         # 11-20: Where are you from
         {"title": "Where Are You From – 1", "words": ["de", "dónde", "eres"]},
@@ -259,7 +259,7 @@ ENCOUNTERS_BY_CATEGORY = {
         {"title": "How Long Here – 1", "words": ["cuánto", "tiempo", "aquí"]},
         {"title": "How Long Here – 2", "words": ["vives", "aquí", "años"]},
         {"title": "How Long Here – 3", "words": ["llegaste", "cuándo", "aquí"]},
-        {"title": "Do You Like It Here – 1", "words": ["te", "gusta", "aquí"]},
+        {"title": "Do You Like It Here – 1", "words": ["me gusta", "aquí", "país"]},
         # 21-30: Work and occupation
         {"title": "What Do You Do – 1", "words": ["qué", "haces", "trabajo"]},
         {"title": "What Do You Do – 2", "words": ["trabajo", "cuál", "tú"]},
@@ -267,7 +267,7 @@ ENCOUNTERS_BY_CATEGORY = {
         {"title": "Talking About Work – 1", "words": ["trabajo", "como", "profesión"]},
         {"title": "Talking About Work – 2", "words": ["soy", "profesor", "ingeniero"]},
         {"title": "Talking About Work – 3", "words": ["empresa", "trabajo", "dónde"]},
-        {"title": "Do You Like Your Job – 1", "words": ["te", "gusta", "trabajo"]},
+        {"title": "Do You Like Your Job – 1", "words": ["me gusta", "trabajo", "profesión"]},
         {"title": "Do You Like Your Job – 2", "words": ["satisfecho", "trabajo", "contento"]},
         {"title": "Work Schedule – 1", "words": ["horario", "trabajo", "cuándo"]},
         {"title": "Work Schedule – 2", "words": ["días", "trabajas", "semana"]},

@@ -118,3 +118,4 @@ COMPLETE_1000_WORDS = [
 # For now, I'll create a script that generates a reasonable set
 # based on common Spanish frequency patterns
 
+

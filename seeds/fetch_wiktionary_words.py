@@ -53,3 +53,4 @@ if __name__ == "__main__":
     for rank, spanish, english in words[:10]:
         print(f"{rank}: {spanish} - {english}")
 
+

@@ -95,6 +95,7 @@ class CreateConversationRequest(BaseModel):
 class CreateConversationResponse(BaseModel):
     conversation_id: UUID
     words: List[WordSchema]  # Return the words used in this conversation
+    initial_message: str  # Custom initial message for this encounter
 
 
 class MessageRequest(BaseModel):
