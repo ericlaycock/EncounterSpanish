@@ -63,17 +63,24 @@ async def stream_text(
             yield chunk.choices[0].delta.content
 
 
-async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.mp3") -> str:
-    """Transcribe audio using OpenAI STT"""
+async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.mp3", prompt: str = None) -> str:
+    """Transcribe audio using OpenAI STT with optional prompt for better accuracy"""
     client = get_client()
     # Create a file-like object from bytes
     audio_file = io.BytesIO(audio_bytes)
     audio_file.name = filename
     
-    transcript = client.audio.transcriptions.create(
-        model="whisper-1",
-        file=audio_file
-    )
+    params = {
+        "model": "whisper-1",
+        "file": audio_file,
+        "language": "es"  # Spanish language hint
+    }
+    
+    # Add prompt if provided to help with context and specific vocabulary
+    if prompt:
+        params["prompt"] = prompt
+    
+    transcript = client.audio.transcriptions.create(**params)
     return transcript.text
 
 

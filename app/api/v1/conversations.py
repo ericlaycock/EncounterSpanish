@@ -248,12 +248,28 @@ async def voice_turn(
             detail="This endpoint is for voice mode only"
         )
     
-    # Step 1: STT transcription
+    # Step 1: STT transcription with context prompt
     audio_bytes = await audio.read()
-    user_transcript = await transcribe_audio(audio_bytes, filename=audio.filename or "audio.mp3")
+    
+    # Get words and situation for prompt context
+    words = get_words_by_ids(db, conversation.target_word_ids)
+    situation = db.query(Situation).filter(Situation.id == conversation.situation_id).first()
+    
+    # Build prompt to help Whisper with Spanish vocabulary and context
+    # Include target words and situation context to improve transcription accuracy
+    target_words_list = ", ".join([f"{w.spanish} ({w.english})" for w in words])
+    transcription_prompt = f"""This is a conversation about {situation.title if situation else 'a situation'}.
+The user is learning Spanish and may use these Spanish words: {target_words_list}.
+The conversation is in Spanish and English. Focus on accurate Spanish transcription.
+Common Spanish words that may appear: tamaño, talla, número, grande, pequeño, mediano."""
+    
+    user_transcript = await transcribe_audio(
+        audio_bytes, 
+        filename=audio.filename or "audio.mp3",
+        prompt=transcription_prompt
+    )
     
     # Step 2: Detect word_ids
-    words = get_words_by_ids(db, conversation.target_word_ids)
     detected_word_ids = detect_words_in_text(user_transcript, words)
     
     # Step 3: Update used_spoken_word_ids
@@ -265,7 +281,7 @@ async def voice_turn(
     update_user_word_stats(db, str(current_user.id), detected_word_ids, "voice")
     
     # Step 5: Generate assistant_text via OpenAI
-    situation = db.query(Situation).filter(Situation.id == conversation.situation_id).first()
+    # Situation already loaded above
     target_words = [f"{w.spanish} ({w.english})" for w in words]
     used_words = [w.spanish for w in words if w.id in (conversation.used_spoken_word_ids or [])]
     missing_words = [w.spanish for w in words if w.id not in (conversation.used_spoken_word_ids or [])]
