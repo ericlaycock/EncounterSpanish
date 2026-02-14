@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import get_current_user, get_current_user_from_query
-from app.models import User, Conversation, Situation, SituationWord, Word
+from app.models import User, Conversation, Situation, SituationWord, Word, UserWord
 from app.schemas import (
     CreateConversationRequest,
     CreateConversationResponse,
