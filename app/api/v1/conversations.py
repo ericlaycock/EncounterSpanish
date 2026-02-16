@@ -86,7 +86,7 @@ async def create_conversation(
             initial_message = get_initial_message_for_encounter(situation.title)
             return CreateConversationResponse(
                 conversation_id=conversation.id,
-                words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words],
+                words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english, notes=w.notes) for w in final_words],
                 initial_message=initial_message
             )
     

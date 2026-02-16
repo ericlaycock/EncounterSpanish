@@ -190,7 +190,7 @@ async def get_situation(
         id=situation.id,
         title=situation.title,
         free=situation.is_free,
-        words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+        words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english, notes=w.notes) for w in final_words]
     )
 
 
@@ -316,7 +316,7 @@ async def start_situation(
     final_words = sorted_encounter_words + sorted_high_freq_words
     
     return StartSituationResponse(
-        words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words]
+        words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english, notes=w.notes) for w in final_words]
     )
 
 

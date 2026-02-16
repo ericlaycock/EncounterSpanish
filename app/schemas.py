@@ -34,6 +34,7 @@ class WordSchema(BaseModel):
     id: str
     spanish: str
     english: str
+    notes: Optional[str] = None
 
     class Config:
         from_attributes = True
