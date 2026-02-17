@@ -259,11 +259,11 @@ async def start_situation(
         all_word_ids = encounter_word_ids + high_freq_word_ids
         words = db.query(Word).filter(Word.id.in_(all_word_ids)).all()
         
-        # Create conversation with these words
+        # Create conversation with these words (text mode as source of truth for words)
         conversation = Conversation(
             user_id=current_user.id,
             situation_id=situation_id,
-            mode="text",
+            mode="text",  # Text mode conversation stores the word selection (even though text chat UI is removed)
             target_word_ids=target_word_ids,
             used_typed_word_ids=[],
             used_spoken_word_ids=[]
