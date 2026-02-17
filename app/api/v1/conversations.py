@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import get_current_user, get_current_user_from_query
@@ -12,7 +11,7 @@ from app.schemas import (
     VoiceTurnResponse,
     WordSchema
 )
-from app.services.openai_service import generate_text, stream_text, transcribe_audio, generate_speech
+from app.services.openai_service import generate_text, transcribe_audio, generate_speech
 from app.services.word_detection import detect_words_in_text, get_words_by_ids
 from app.services.conversation_service import (
     check_conversation_complete,
@@ -144,135 +143,7 @@ async def create_conversation(
         )
 
 
-@router.post("/{conversation_id}/messages", response_model=MessageResponse)
-async def send_message(
-    conversation_id: str,
-    message: MessageRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Send a message in text mode conversation"""
-    conversation = db.query(Conversation).filter(
-        Conversation.id == conversation_id,
-        Conversation.user_id == current_user.id
-    ).first()
-    
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found"
-        )
-    
-    if conversation.mode != "text":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This endpoint is for text mode only"
-        )
-    
-    # Get all words to detect
-    words = get_words_by_ids(db, conversation.target_word_ids)
-    
-    # Detect words in user message
-    detected_word_ids = detect_words_in_text(message.text, words)
-    
-    # Update used_typed_word_ids
-    current_used = set(conversation.used_typed_word_ids or [])
-    current_used.update(detected_word_ids)
-    conversation.used_typed_word_ids = list(current_used)
-    
-    # Update user word stats
-    update_user_word_stats(db, str(current_user.id), detected_word_ids, "text")
-    
-    # Check if complete
-    if check_conversation_complete(conversation, "text"):
-        conversation.status = "complete"
-    
-    db.commit()
-    
-    # Get missing words
-    missing_word_ids = get_missing_word_ids(conversation, "text")
-    
-    return MessageResponse(
-        detected_word_ids=detected_word_ids,
-        missing_word_ids=missing_word_ids
-    )
-
-
-@router.get("/{conversation_id}/stream")
-async def stream_conversation(
-    conversation_id: str,
-    token: str = Query(..., description="JWT token for authentication"),
-    current_user: User = Depends(get_current_user_from_query),
-    db: Session = Depends(get_db)
-):
-    """Stream assistant response for text mode conversation (SSE)
-    Note: Token must be passed as query parameter since EventSource doesn't support headers"""
-    conversation = db.query(Conversation).filter(
-        Conversation.id == conversation_id,
-        Conversation.user_id == current_user.id
-    ).first()
-    
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found"
-        )
-    
-    if conversation.mode != "text":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This endpoint is for text mode only"
-        )
-    
-    # Get situation and words
-    situation = db.query(Situation).filter(Situation.id == conversation.situation_id).first()
-    words = get_words_by_ids(db, conversation.target_word_ids)
-    
-    # Format target words for prompt
-    target_words = [f"{w.spanish} ({w.english})" for w in words]
-    used_words = [w.spanish for w in words if w.id in (conversation.used_typed_word_ids or [])]
-    missing_words = [w.spanish for w in words if w.id not in (conversation.used_typed_word_ids or [])]
-    
-    # Clean, concise system prompt
-    system_prompt = """You are a helpful assistant at a Spanish-speaking location helping an English-speaking expat.
-Speak only in English. Keep responses to 1-2 sentences.
-Naturally ask questions that require the user to use specific Spanish words - but NEVER mention the Spanish words directly.
-Encourage natural conversation where the user can use multiple Spanish words together.
-Once a word has been used, move on to asking about the remaining words."""
-    
-    # Build concise context - only missing words
-    missing_words_info = []
-    for word in words:
-        if word.id not in (conversation.used_typed_word_ids or []):
-            missing_words_info.append(f"{word.spanish} ({word.english})")
-    
-    # Concise user prompt
-    if missing_words_info:
-        user_prompt = f"""Situation: {situation.title}
-Still need to elicit: {', '.join(missing_words_info)}
-Already used: {', '.join(used_words) if used_words else 'None'}
-
-Ask a natural question about one of the missing words. Do NOT mention the Spanish word. Move the conversation forward naturally."""
-    else:
-        user_prompt = f"""Situation: {situation.title}
-All words have been used. Continue the conversation naturally to complete the interaction."""
-    
-    async def generate():
-        async for chunk in stream_text(system_prompt, user_prompt):
-            # Frontend expects {text: string} format
-            yield f"data: {json.dumps({'text': chunk})}\n\n"
-        # Frontend expects {done: true} format
-        yield f"data: {json.dumps({'done': True})}\n\n"
-    
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        }
-    )
-
+# Text chat endpoints removed - only voice chat is used now
 
 @router.post("/{conversation_id}/voice-turn", response_model=VoiceTurnResponse)
 async def voice_turn(
