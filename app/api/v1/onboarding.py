@@ -10,7 +10,10 @@ router = APIRouter()
 
 
 class SaveOnboardingSelectionsRequest(BaseModel):
-    selected_categories: List[str]  # e.g., ["banking", "small_talk", "groceries"]
+    selected_category: str  # Single category ID
+    dialect: str  # 'mexico', 'colombia', 'costa_rica'
+    grammar_score: str | None = None  # Quiz grammar score
+    vocab_score: str | None = None  # Quiz vocab score
 
 
 class OnboardingStatusResponse(BaseModel):
@@ -24,29 +27,34 @@ async def save_onboarding_selections(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Save user's selected situation categories from onboarding"""
-    if len(request.selected_categories) != 3:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Must select exactly 3 categories"
-        )
-    
-    # Validate categories exist
+    """Save user's selected situation category, dialect, and quiz scores from onboarding"""
+    # Validate category exists
     valid_categories = db.query(Situation.category).distinct().all()
     valid_category_list = [cat[0] for cat in valid_categories]
     
-    for category in request.selected_categories:
-        if category not in valid_category_list:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid category: {category}"
-            )
+    if request.selected_category not in valid_category_list:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid category: {request.selected_category}"
+        )
     
-    current_user.selected_situation_categories = request.selected_categories
+    # Validate dialect
+    valid_dialects = ['mexico', 'colombia', 'costa_rica']
+    if request.dialect not in valid_dialects:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid dialect: {request.dialect}"
+        )
+    
+    # Save single category as array for backward compatibility
+    current_user.selected_situation_categories = [request.selected_category]
+    current_user.dialect = request.dialect
+    current_user.grammar_score = request.grammar_score
+    current_user.vocab_score = request.vocab_score
     current_user.onboarding_completed = True
     db.commit()
     
-    return {"status": "success", "message": "Selections saved"}
+    return {"status": "success", "message": "Onboarding data saved"}
 
 
 @router.get("/status", response_model=OnboardingStatusResponse)

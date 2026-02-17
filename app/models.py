@@ -13,7 +13,10 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     onboarding_completed = Column(Boolean, default=False, nullable=False)
-    selected_situation_categories = Column(JSONB, nullable=True)  # List of category IDs user selected
+    selected_situation_categories = Column(JSONB, nullable=True)  # Now stores single category as string
+    dialect = Column(String, nullable=True)  # 'mexico', 'colombia', 'costa_rica'
+    grammar_score = Column(String, nullable=True)  # Quiz grammar score
+    vocab_score = Column(String, nullable=True)  # Quiz vocab score
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
