@@ -152,3 +152,39 @@ async def get_current_user_from_query(
 
 
 
+
+
+
+async def get_current_user_from_query(
+    token: str = None,
+    db: Session = Depends(get_db)
+) -> User:
+    """Get the current authenticated user from JWT token in query parameter (for SSE)"""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return get_user_from_token(token, db)
+
+
+
+
+
+
+async def get_current_user_from_query(
+    token: str = None,
+    db: Session = Depends(get_db)
+) -> User:
+    """Get the current authenticated user from JWT token in query parameter (for SSE)"""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return get_user_from_token(token, db)
+
+
+

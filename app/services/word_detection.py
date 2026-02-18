@@ -56,3 +56,25 @@ def get_words_by_ids(db: Session, word_ids: List[str]) -> List[Word]:
 
 
 
+
+    
+    return detected_word_ids
+
+
+def get_words_by_ids(db: Session, word_ids: List[str]) -> List[Word]:
+    """Get Word objects by their IDs"""
+    return db.query(Word).filter(Word.id.in_(word_ids)).all()
+
+
+
+
+    
+    return detected_word_ids
+
+
+def get_words_by_ids(db: Session, word_ids: List[str]) -> List[Word]:
+    """Get Word objects by their IDs"""
+    return db.query(Word).filter(Word.id.in_(word_ids)).all()
+
+
+

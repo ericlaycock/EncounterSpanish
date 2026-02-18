@@ -131,3 +131,127 @@ async def get_unknown_words(
     }
 
 
+
+                word_id=word_id,
+                typed_correct_count=1
+            )
+            db.add(user_word)
+    
+    db.commit()
+    return {"message": "Updated"}
+
+
+@router.get("/unknown", response_model=dict)
+async def get_unknown_words(
+    category: Optional[str] = Query(None, description="Filter by category: 'high_frequency' or 'encounter'"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get unknown words (words user hasn't learned yet) grouped by category"""
+    
+    # Get all words user has learned (has UserWord entry)
+    learned_word_ids = set(
+        word_id[0] for word_id in 
+        db.query(UserWord.word_id).filter(UserWord.user_id == current_user.id).all()
+    )
+    
+    # Build query for unknown words
+    query = db.query(Word).filter(
+        ~Word.id.in_(learned_word_ids) if learned_word_ids else True
+    )
+    
+    # Filter by category if provided
+    if category:
+        query = query.filter(Word.word_category == category)
+    else:
+        # Only return words with a category (high_frequency or encounter)
+        query = query.filter(Word.word_category.isnot(None))
+    
+    unknown_words = query.order_by(Word.frequency_rank.asc().nullslast(), Word.spanish.asc()).all()
+    
+    # Group by category
+    high_frequency = []
+    encounter = []
+    
+    for word in unknown_words:
+        word_data = UnknownWordSchema(
+            word_id=word.id,
+            spanish=word.spanish,
+            english=word.english,
+            word_category=word.word_category,
+            frequency_rank=word.frequency_rank
+        )
+        
+        if word.word_category == 'high_frequency':
+            high_frequency.append(word_data)
+        elif word.word_category == 'encounter':
+            encounter.append(word_data)
+    
+    return {
+        "high_frequency": high_frequency,
+        "encounter": encounter
+    }
+
+
+
+                word_id=word_id,
+                typed_correct_count=1
+            )
+            db.add(user_word)
+    
+    db.commit()
+    return {"message": "Updated"}
+
+
+@router.get("/unknown", response_model=dict)
+async def get_unknown_words(
+    category: Optional[str] = Query(None, description="Filter by category: 'high_frequency' or 'encounter'"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get unknown words (words user hasn't learned yet) grouped by category"""
+    
+    # Get all words user has learned (has UserWord entry)
+    learned_word_ids = set(
+        word_id[0] for word_id in 
+        db.query(UserWord.word_id).filter(UserWord.user_id == current_user.id).all()
+    )
+    
+    # Build query for unknown words
+    query = db.query(Word).filter(
+        ~Word.id.in_(learned_word_ids) if learned_word_ids else True
+    )
+    
+    # Filter by category if provided
+    if category:
+        query = query.filter(Word.word_category == category)
+    else:
+        # Only return words with a category (high_frequency or encounter)
+        query = query.filter(Word.word_category.isnot(None))
+    
+    unknown_words = query.order_by(Word.frequency_rank.asc().nullslast(), Word.spanish.asc()).all()
+    
+    # Group by category
+    high_frequency = []
+    encounter = []
+    
+    for word in unknown_words:
+        word_data = UnknownWordSchema(
+            word_id=word.id,
+            spanish=word.spanish,
+            english=word.english,
+            word_category=word.word_category,
+            frequency_rank=word.frequency_rank
+        )
+        
+        if word.word_category == 'high_frequency':
+            high_frequency.append(word_data)
+        elif word.word_category == 'encounter':
+            encounter.append(word_data)
+    
+    return {
+        "high_frequency": high_frequency,
+        "encounter": encounter
+    }
+
+

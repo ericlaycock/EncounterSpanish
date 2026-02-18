@@ -60,3 +60,73 @@ def get_db():
 
 
 
+
+    from sqlalchemy import text
+    for attempt in range(max_retries):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            logger.info("✅ Database connection successful")
+            return True
+        except OperationalError as e:
+            logger.warning(f"⚠️  Database connection attempt {attempt + 1}/{max_retries} failed: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                logger.error("❌ Failed to connect to database after all retries")
+                return False
+        except Exception as e:
+            logger.error(f"❌ Unexpected error testing database connection: {e}")
+            return False
+    return False
+
+
+def get_db():
+    """Dependency for getting database session"""
+    db = SessionLocal()
+    try:
+        yield db
+    except OperationalError as e:
+        logger.error(f"❌ Database connection error: {e}")
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+
+
+    from sqlalchemy import text
+    for attempt in range(max_retries):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            logger.info("✅ Database connection successful")
+            return True
+        except OperationalError as e:
+            logger.warning(f"⚠️  Database connection attempt {attempt + 1}/{max_retries} failed: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                logger.error("❌ Failed to connect to database after all retries")
+                return False
+        except Exception as e:
+            logger.error(f"❌ Unexpected error testing database connection: {e}")
+            return False
+    return False
+
+
+def get_db():
+    """Dependency for getting database session"""
+    db = SessionLocal()
+    try:
+        yield db
+    except OperationalError as e:
+        logger.error(f"❌ Database connection error: {e}")
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+
