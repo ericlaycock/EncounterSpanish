@@ -18,6 +18,7 @@ from typing import List, Optional
 router = APIRouter()
 
 
+
 class SelectedSituationProgress(BaseModel):
     category: str
     category_name: str
