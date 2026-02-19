@@ -153,6 +153,12 @@ async def voice_turn(
     db: Session = Depends(get_db)
 ):
     """Process a voice turn: STT → detect → update → generate → TTS"""
+    import time
+    import logging
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+    logger.info(f"[Voice Turn] Starting voice_turn for conversation {conversation_id}")
+    
     conversation = db.query(Conversation).filter(
         Conversation.id == conversation_id,
         Conversation.user_id == current_user.id
@@ -171,11 +177,17 @@ async def voice_turn(
         )
     
     # Step 1: STT transcription with context prompt
+    read_start = time.time()
     audio_bytes = await audio.read()
+    read_time = time.time() - read_start
+    logger.info(f"[Voice Turn] Audio read: {read_time:.2f}s, size: {len(audio_bytes)} bytes")
     
     # Get words and situation for prompt context
+    db_start = time.time()
     words = get_words_by_ids(db, conversation.target_word_ids)
     situation = db.query(Situation).filter(Situation.id == conversation.situation_id).first()
+    db_time = time.time() - db_start
+    logger.info(f"[Voice Turn] DB queries: {db_time:.2f}s")
     
     # Build prompt to help Whisper with Spanish vocabulary and context
     # Include target words and situation context to improve transcription accuracy
@@ -185,22 +197,31 @@ The user is learning Spanish and may use these Spanish words: {target_words_list
 The conversation is in Spanish and English. Focus on accurate Spanish transcription.
 Common Spanish words that may appear: tamaño, talla, número, grande, pequeño, mediano."""
     
+    stt_start = time.time()
     user_transcript = await transcribe_audio(
         audio_bytes, 
         filename=audio.filename or "audio.mp3",
         prompt=transcription_prompt
     )
+    stt_time = time.time() - stt_start
+    logger.info(f"[Voice Turn] STT transcription: {stt_time:.2f}s, transcript: '{user_transcript}'")
     
     # Step 2: Detect word_ids
+    detect_start = time.time()
     detected_word_ids = detect_words_in_text(user_transcript, words)
+    detect_time = time.time() - detect_start
+    logger.info(f"[Voice Turn] Word detection: {detect_time:.2f}s, detected: {detected_word_ids}")
     
     # Step 3: Update used_spoken_word_ids
+    update_start = time.time()
     current_used = set(conversation.used_spoken_word_ids or [])
     current_used.update(detected_word_ids)
     conversation.used_spoken_word_ids = list(current_used)
     
     # Step 4: Update user_words.spoken_correct_count
     update_user_word_stats(db, str(current_user.id), detected_word_ids, "voice")
+    update_time = time.time() - update_start
+    logger.info(f"[Voice Turn] DB updates: {update_time:.2f}s")
     
     # Step 5: Generate assistant_text via OpenAI
     # Situation already loaded above
@@ -225,25 +246,37 @@ User said: {user_transcript}
 
 Ask a natural question requiring a missing Spanish word. Do NOT mention the Spanish word. Return JSON only."""
     
+    gen_start = time.time()
     assistant_response = await generate_text(system_prompt, user_prompt, return_json=True)
+    gen_time = time.time() - gen_start
     assistant_text = assistant_response.get("assistant_text", "")
     end_conversation = assistant_response.get("end_conversation", False)
+    logger.info(f"[Voice Turn] Text generation: {gen_time:.2f}s, text: '{assistant_text[:50]}...'")
     
     # Step 6: TTS generate audio file
+    tts_start = time.time()
     audio_filename = generate_audio_filename()
     audio_path = get_audio_path(audio_filename)
     await generate_speech(assistant_text, str(audio_path))
     assistant_audio_url = get_audio_url(audio_filename)
+    tts_time = time.time() - tts_start
+    logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s")
     
     # Check if conversation is complete
     conversation_complete = check_conversation_complete(conversation, "voice") or end_conversation
     if conversation_complete:
         conversation.status = "complete"
     
+    commit_start = time.time()
     db.commit()
+    commit_time = time.time() - commit_start
+    logger.info(f"[Voice Turn] DB commit: {commit_time:.2f}s")
     
     # Get missing words
     missing_word_ids = get_missing_word_ids(conversation, "voice")
+    
+    total_time = time.time() - start_time
+    logger.info(f"[Voice Turn] Total processing time: {total_time:.2f}s (read: {read_time:.2f}s, db_queries: {db_time:.2f}s, stt: {stt_time:.2f}s, detect: {detect_time:.2f}s, update: {update_time:.2f}s, gen: {gen_time:.2f}s, tts: {tts_time:.2f}s, commit: {commit_time:.2f}s)")
     
     return VoiceTurnResponse(
         user_transcript=user_transcript,
