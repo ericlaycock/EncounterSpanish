@@ -11,7 +11,10 @@ from app.schemas import (
     VoiceTurnResponse,
     WordSchema
 )
-from app.services.openai_service import generate_text, transcribe_audio, generate_speech
+from app.services.openai_service import generate_text, transcribe_audio, generate_speech  # Deprecated, use gateways
+from app.services.llm_gateway import generate_conversation, ConversationContext, load_prompt
+from app.services.openai_media_gateway import transcribe_audio as gateway_transcribe_audio, synthesize_speech as gateway_synthesize_speech
+from fastapi import Request
 from app.services.word_detection import detect_words_in_text, get_words_by_ids
 from app.services.conversation_service import (
     check_conversation_complete,
@@ -149,6 +152,7 @@ async def create_conversation(
 async def voice_turn(
     conversation_id: str,
     audio: UploadFile = File(...),
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -158,6 +162,12 @@ async def voice_turn(
     logger = logging.getLogger(__name__)
     start_time = time.time()
     logger.info(f"[Voice Turn] Starting voice_turn for conversation {conversation_id}")
+    
+    # Get request_id from request state (set by middleware)
+    request_id = getattr(request.state, "request_id", "unknown")
+    
+    # Set user_id in request state for logging middleware
+    request.state.user_id = current_user.id
     
     conversation = db.query(Conversation).filter(
         Conversation.id == conversation_id,
@@ -198,10 +208,14 @@ The conversation is in Spanish and English. Focus on accurate Spanish transcript
 Common Spanish words that may appear: tamaño, talla, número, grande, pequeño, mediano."""
     
     stt_start = time.time()
-    user_transcript = await transcribe_audio(
-        audio_bytes, 
+    user_transcript = await gateway_transcribe_audio(
+        audio_bytes=audio_bytes,
         filename=audio.filename or "audio.mp3",
-        prompt=transcription_prompt
+        prompt=transcription_prompt,
+        language="es",
+        request_id=request_id,
+        user_id=str(current_user.id),
+        db=db
     )
     stt_time = time.time() - stt_start
     logger.info(f"[Voice Turn] STT transcription: {stt_time:.2f}s, transcript: '{user_transcript}'")
@@ -229,10 +243,8 @@ Common Spanish words that may appear: tamaño, talla, número, grande, pequeño,
     used_words = [w.spanish for w in words if w.id in (conversation.used_spoken_word_ids or [])]
     missing_words = [w.spanish for w in words if w.id not in (conversation.used_spoken_word_ids or [])]
     
-    system_prompt = """You are a helpful assistant at a Spanish-speaking location helping an English-speaking expat.
-Speak only in English. Keep replies to 1-2 sentences.
-Naturally ask questions that require specific Spanish words - but NEVER mention the Spanish words directly.
-Return JSON: {{"assistant_text": "...", "end_conversation": false}}"""
+    # Load system prompt from prompts.json
+    system_prompt = load_prompt("conversation_agent", "v1")
     
     missing_words_info = []
     for word in words:
@@ -246,9 +258,22 @@ User said: {user_transcript}
 
 Ask a natural question requiring a missing Spanish word. Do NOT mention the Spanish word. Return JSON only."""
     
+    # Use LLM gateway
     gen_start = time.time()
-    assistant_response = await generate_text(system_prompt, user_prompt, return_json=True)
+    context = ConversationContext(
+        request_id=request_id,
+        user_id=str(current_user.id),
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        agent_id="conversation_agent",
+        prompt_version="v1",
+        return_json=True
+    )
+    llm_result = await generate_conversation(context, db)
     gen_time = time.time() - gen_start
+    
+    # Extract response (gateway returns dict with 'content')
+    assistant_response = llm_result["content"] if isinstance(llm_result["content"], dict) else {"assistant_text": "", "end_conversation": False}
     assistant_text = assistant_response.get("assistant_text", "")
     end_conversation = assistant_response.get("end_conversation", False)
     logger.info(f"[Voice Turn] Text generation: {gen_time:.2f}s, text: '{assistant_text[:50]}...'")
@@ -257,7 +282,14 @@ Ask a natural question requiring a missing Spanish word. Do NOT mention the Span
     tts_start = time.time()
     audio_filename = generate_audio_filename()
     audio_path = get_audio_path(audio_filename)
-    await generate_speech(assistant_text, str(audio_path))
+    await gateway_synthesize_speech(
+        text=assistant_text,
+        output_path=str(audio_path),
+        voice="alloy",
+        request_id=request_id,
+        user_id=str(current_user.id),
+        db=db
+    )
     assistant_audio_url = get_audio_url(audio_filename)
     tts_time = time.time() - tts_start
     logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s")

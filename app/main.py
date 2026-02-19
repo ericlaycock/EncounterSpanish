@@ -7,7 +7,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 import logging
 import os
-from app.api.v1 import auth, subscription, situations, user_words, conversations, onboarding
+from app.api.v1 import auth, subscription, situations, user_words, conversations, onboarding, logs
 from app.database import engine
 from app.models import Base
 
@@ -23,6 +23,28 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup: Run migrations and wake up the app
     print("🚀 Encounter Spanish API starting up...")
+    
+    # Emit backend boot event
+    from app.core.logger import log_event
+    import os
+    import platform
+    import sys
+    
+    log_event(
+        level="info",
+        event="backend_boot",
+        message="Backend server starting up",
+        request_id="system",
+        user_id=None,
+        extra={
+            "release": os.environ.get("RELEASE_SHA", "unknown"),
+            "environment": os.environ.get("ENVIRONMENT", os.environ.get("RAILWAY_ENVIRONMENT", "unknown")),
+            "python_version": sys.version.split()[0],
+            "platform": platform.platform(),
+            "node": platform.node(),
+            "auto_migrate": os.environ.get("AUTO_MIGRATE", "false").lower() == "true",
+        }
+    )
     
     # Test database connection first with retries
     from app.database import test_connection
@@ -90,6 +112,14 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Request ID middleware (must be first)
+from app.middleware.request_id import RequestIDMiddleware
+app.add_middleware(RequestIDMiddleware)
+
+# Request logging middleware (after request_id)
+from app.middleware.request_logging import RequestLoggingMiddleware
+app.add_middleware(RequestLoggingMiddleware)
 
 # CORS middleware - Allow all origins using regex
 app.add_middleware(
@@ -212,6 +242,8 @@ logger.info("  ✅ /v1/conversations (POST /, POST /{id}/messages, GET /{id}/str
 from app.api.v1 import onboarding
 app.include_router(onboarding.router, prefix="/v1/onboarding", tags=["onboarding"])
 logger.info("  ✅ /v1/onboarding (POST /save-selections, GET /status, GET /available-categories)")
+app.include_router(logs.router, prefix="/v1/log", tags=["logs"])
+logger.info("  ✅ /v1/log (POST / - frontend logging)")
 logger.info("✅ All routes registered")
 
 
