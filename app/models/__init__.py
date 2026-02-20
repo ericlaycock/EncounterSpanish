@@ -8,7 +8,7 @@ from pathlib import Path
 parent_dir = Path(__file__).parent.parent
 models_py_path = parent_dir / "models.py"
 
-# Load the models.py module
+# Load the models.py module with a different name to avoid conflicts
 spec = importlib.util.spec_from_file_location("app.models_legacy", str(models_py_path))
 models_legacy = importlib.util.module_from_spec(spec)
 sys.modules["app.models_legacy"] = models_legacy
@@ -23,6 +23,8 @@ UserWord = models_legacy.UserWord
 UserSituation = models_legacy.UserSituation
 Conversation = models_legacy.Conversation
 Subscription = models_legacy.Subscription
+# Base is imported from database, not from models.py
+from app.database import Base
 
 # Import AI request models from ai_requests.py
 from app.models.ai_requests import (
@@ -44,3 +46,7 @@ __all__ = [
     "STTRequest",
     "TTSRequest",
 ]
+
+# Also export Base if it exists
+if Base:
+    __all__.append("Base")
