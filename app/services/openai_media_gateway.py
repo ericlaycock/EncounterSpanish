@@ -6,7 +6,7 @@ import uuid
 import io
 from openai import OpenAI
 from sqlalchemy.orm import Session
-from app.models.ai_requests import STTRequest, TTSRequest
+from app.models import STTRequest, TTSRequest
 from app.core.logger import log_event
 from app.config import settings
 

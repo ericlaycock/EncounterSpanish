@@ -6,7 +6,7 @@ import time
 import uuid
 from openai import OpenAI
 from sqlalchemy.orm import Session
-from app.models.ai_requests import LLMRequest
+from app.models import LLMRequest
 from app.core.logger import log_event
 from app.config import settings
 import os
