@@ -7,9 +7,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 import logging
 import os
-from app.api.v1 import auth, subscription, situations, user_words, conversations, onboarding, logs
-from app.database import engine
-from app.models import Base
+import platform
+import sys
 
 # Configure logging
 logging.basicConfig(
@@ -18,18 +17,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Run migrations and wake up the app
-    print("🚀 Encounter Spanish API starting up...")
-    
-    # Emit backend boot event
+# Emit boot event as early as possible (before imports that might fail)
+try:
     from app.core.logger import log_event
-    import os
-    import platform
-    import sys
-    
     log_event(
         level="info",
         event="backend_boot",
@@ -45,6 +35,19 @@ async def lifespan(app: FastAPI):
             "auto_migrate": os.environ.get("AUTO_MIGRATE", "false").lower() == "true",
         }
     )
+except Exception as e:
+    # If logging fails, at least print to stdout
+    print(f"⚠️  Failed to emit boot event: {e}", file=sys.stderr)
+
+from app.api.v1 import auth, subscription, situations, user_words, conversations, onboarding, logs
+from app.database import engine
+from app.models import Base
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Run migrations and wake up the app
+    print("🚀 Encounter Spanish API starting up...")
     
     # Test database connection first with retries
     from app.database import test_connection
