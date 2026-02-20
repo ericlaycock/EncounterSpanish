@@ -33,6 +33,7 @@ try:
             "platform": platform.platform(),
             "node": platform.node(),
             "auto_migrate": os.environ.get("AUTO_MIGRATE", "false").lower() == "true",
+            "test_log": True,  # Mark as test log for Better Stack Live tail verification
         }
     )
 except Exception as e:

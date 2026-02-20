@@ -151,8 +151,8 @@ async def create_conversation(
 @router.post("/{conversation_id}/voice-turn", response_model=VoiceTurnResponse)
 async def voice_turn(
     conversation_id: str,
-    request: Request,
     audio: UploadFile = File(...),
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

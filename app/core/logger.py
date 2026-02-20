@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from typing import Optional, Dict, Any
 import os
+from app.core.betterstack import schedule_ship_log
 
 
 def log_event(
@@ -15,7 +16,7 @@ def log_event(
     extra: Dict[str, Any] = {}
 ) -> None:
     """
-    Emit structured JSON log event to stdout.
+    Emit structured JSON log event to stdout and optionally ship to Better Stack.
     
     Args:
         level: Log level (info, error, warn, debug)
@@ -41,6 +42,9 @@ def log_event(
     # Merge extra fields
     log_entry.update(extra)
     
-    # Emit JSON to stdout (Railway/Better Stack will capture)
+    # Always print JSON to stdout (Railway/Better Stack will capture)
     print(json.dumps(log_entry), file=sys.stdout, flush=True)
+    
+    # Additionally ship to Better Stack asynchronously (fire-and-forget)
+    schedule_ship_log(log_entry)
 
