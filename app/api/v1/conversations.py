@@ -166,6 +166,9 @@ async def voice_turn(
     # Get request_id from request state (set by middleware)
     request_id = getattr(request.state, "request_id", "unknown")
     
+    # Get learning phase from header (Phase 2 or 3 for voice conversations)
+    learning_phase = request.headers.get("X-Learning-Phase", "2")  # Default to phase 2 if not provided
+    
     # Set user_id in request state for logging middleware
     request.state.user_id = current_user.id
     
@@ -215,7 +218,8 @@ Common Spanish words that may appear: tamaño, talla, número, grande, pequeño,
         language="es",
         request_id=request_id,
         user_id=str(current_user.id),
-        db=db
+        db=db,
+        learning_phase=learning_phase
     )
     stt_time = time.time() - stt_start
     logger.info(f"[Voice Turn] STT transcription: {stt_time:.2f}s, transcript: '{user_transcript}'")
@@ -267,7 +271,8 @@ Ask a natural question requiring a missing Spanish word. Do NOT mention the Span
         user_prompt=user_prompt,
         agent_id="conversation_agent",
         prompt_version="v1",
-        return_json=True
+        return_json=True,
+        learning_phase=learning_phase
     )
     llm_result = await generate_conversation(context, db)
     gen_time = time.time() - gen_start
@@ -288,7 +293,8 @@ Ask a natural question requiring a missing Spanish word. Do NOT mention the Span
         voice="alloy",
         request_id=request_id,
         user_id=str(current_user.id),
-        db=db
+        db=db,
+        learning_phase=learning_phase
     )
     assistant_audio_url = get_audio_url(audio_filename)
     tts_time = time.time() - tts_start

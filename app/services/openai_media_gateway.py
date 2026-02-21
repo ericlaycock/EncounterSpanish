@@ -37,7 +37,8 @@ async def transcribe_audio(
     language: Optional[str] = None,
     request_id: str = None,
     user_id: Optional[str] = None,
-    db: Session = None
+    db: Session = None,
+    learning_phase: Optional[str] = None
 ) -> str:
     """
     Transcribe audio using OpenAI STT with full logging.
@@ -91,19 +92,22 @@ async def transcribe_audio(
         db.refresh(stt_record)
     
     # Log start event
+    extra = {
+        "provider": PROVIDER,
+        "model": STT_MODEL,
+        "audio_format": audio_format,
+        "audio_bytes": len(audio_bytes),
+        "language": language,
+    }
+    if learning_phase:
+        extra["learning_phase"] = learning_phase
     log_event(
         level="info",
         event="stt_start",
         message=f"STT request started: {len(audio_bytes)} bytes",
         request_id=request_id or "unknown",
         user_id=str(user_id) if user_id else None,
-        extra={
-            "provider": PROVIDER,
-            "model": STT_MODEL,
-            "audio_format": audio_format,
-            "audio_bytes": len(audio_bytes),
-            "language": language,
-        }
+        extra=extra
     )
     
     try:
@@ -146,21 +150,24 @@ async def transcribe_audio(
             db.commit()
         
         # Log success event
+        extra_success = {
+            "provider": PROVIDER,
+            "model": STT_MODEL,
+            "latency_ms": latency_ms,
+            "audio_seconds": None,  # Would need audio analysis
+            "output_chars": len(transcript_text),
+            "estimated_cost": estimated_cost,
+            "success": True,
+        }
+        if learning_phase:
+            extra_success["learning_phase"] = learning_phase
         log_event(
             level="info",
             event="stt_success",
             message=f"STT completed: {latency_ms}ms, {len(transcript_text)} chars",
             request_id=request_id or "unknown",
             user_id=str(user_id) if user_id else None,
-            extra={
-                "provider": PROVIDER,
-                "model": STT_MODEL,
-                "latency_ms": latency_ms,
-                "audio_seconds": None,  # Would need audio analysis
-                "output_chars": len(transcript_text),
-                "estimated_cost": estimated_cost,
-                "success": True,
-            }
+            extra=extra_success
         )
         
         return transcript_text
@@ -182,20 +189,23 @@ async def transcribe_audio(
             db.commit()
         
         # Log failure event
+        extra_failure = {
+            "provider": PROVIDER,
+            "model": STT_MODEL,
+            "latency_ms": latency_ms,
+            "error_code": error_code,
+            "error_message": error_message,
+            "success": False,
+        }
+        if learning_phase:
+            extra_failure["learning_phase"] = learning_phase
         log_event(
             level="error",
             event="stt_failure",
             message=f"STT failed: {error_code} - {error_message}",
             request_id=request_id or "unknown",
             user_id=str(user_id) if user_id else None,
-            extra={
-                "provider": PROVIDER,
-                "model": STT_MODEL,
-                "latency_ms": latency_ms,
-                "error_code": error_code,
-                "error_message": error_message,
-                "success": False,
-            }
+            extra=extra_failure
         )
         
         # Re-raise exception
@@ -208,7 +218,8 @@ async def synthesize_speech(
     voice: str = "alloy",
     request_id: str = None,
     user_id: Optional[str] = None,
-    db: Session = None
+    db: Session = None,
+    learning_phase: Optional[str] = None
 ) -> str:
     """
     Synthesize speech using OpenAI TTS with full logging.
@@ -262,19 +273,22 @@ async def synthesize_speech(
         db.refresh(tts_record)
     
     # Log start event
+    extra_tts_start = {
+        "provider": PROVIDER,
+        "model": TTS_MODEL,
+        "voice": voice,
+        "input_chars": input_chars,
+        "output_format": output_format,
+    }
+    if learning_phase:
+        extra_tts_start["learning_phase"] = learning_phase
     log_event(
         level="info",
         event="tts_start",
         message=f"TTS request started: {input_chars} chars",
         request_id=request_id or "unknown",
         user_id=str(user_id) if user_id else None,
-        extra={
-            "provider": PROVIDER,
-            "model": TTS_MODEL,
-            "voice": voice,
-            "input_chars": input_chars,
-            "output_format": output_format,
-        }
+        extra=extra_tts_start
     )
     
     try:
@@ -309,20 +323,23 @@ async def synthesize_speech(
             db.commit()
         
         # Log success event
+        extra_tts_success = {
+            "provider": PROVIDER,
+            "model": TTS_MODEL,
+            "latency_ms": latency_ms,
+            "audio_bytes": audio_bytes_written,
+            "estimated_cost": estimated_cost,
+            "success": True,
+        }
+        if learning_phase:
+            extra_tts_success["learning_phase"] = learning_phase
         log_event(
             level="info",
             event="tts_success",
             message=f"TTS completed: {latency_ms}ms, {audio_bytes_written} bytes",
             request_id=request_id or "unknown",
             user_id=str(user_id) if user_id else None,
-            extra={
-                "provider": PROVIDER,
-                "model": TTS_MODEL,
-                "latency_ms": latency_ms,
-                "audio_bytes": audio_bytes_written,
-                "estimated_cost": estimated_cost,
-                "success": True,
-            }
+            extra=extra_tts_success
         )
         
         return output_path
@@ -344,20 +361,23 @@ async def synthesize_speech(
             db.commit()
         
         # Log failure event
+        extra_tts_failure = {
+            "provider": PROVIDER,
+            "model": TTS_MODEL,
+            "latency_ms": latency_ms,
+            "error_code": error_code,
+            "error_message": error_message,
+            "success": False,
+        }
+        if learning_phase:
+            extra_tts_failure["learning_phase"] = learning_phase
         log_event(
             level="error",
             event="tts_failure",
             message=f"TTS failed: {error_code} - {error_message}",
             request_id=request_id or "unknown",
             user_id=str(user_id) if user_id else None,
-            extra={
-                "provider": PROVIDER,
-                "model": TTS_MODEL,
-                "latency_ms": latency_ms,
-                "error_code": error_code,
-                "error_message": error_message,
-                "success": False,
-            }
+            extra=extra_tts_failure
         )
         
         # Re-raise exception

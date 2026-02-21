@@ -38,6 +38,7 @@ class ConversationContext:
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
     return_json: bool = False
+    learning_phase: Optional[str] = None
 
 
 def load_prompt(agent_id: str, prompt_version: str) -> str:
@@ -108,18 +109,21 @@ async def generate_conversation(
     db.refresh(llm_record)
     
     # Log start event
+    extra_llm_start = {
+        "provider": PROVIDER,
+        "model": MODEL,
+        "agent_id": context.agent_id,
+        "prompt_version": context.prompt_version,
+    }
+    if context.learning_phase:
+        extra_llm_start["learning_phase"] = context.learning_phase
     log_event(
         level="info",
         event="llm_start",
         message=f"LLM request started: {context.agent_id} v{context.prompt_version}",
         request_id=context.request_id,
         user_id=str(context.user_id) if context.user_id else None,
-        extra={
-            "provider": PROVIDER,
-            "model": MODEL,
-            "agent_id": context.agent_id,
-            "prompt_version": context.prompt_version,
-        }
+        extra=extra_llm_start
     )
     
     try:
@@ -173,22 +177,25 @@ async def generate_conversation(
         db.commit()
         
         # Log success event
+        extra_llm_success = {
+            "provider": PROVIDER,
+            "model": MODEL,
+            "agent_id": context.agent_id,
+            "latency_ms": latency_ms,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "estimated_cost": estimated_cost,
+            "success": True,
+        }
+        if context.learning_phase:
+            extra_llm_success["learning_phase"] = context.learning_phase
         log_event(
             level="info",
             event="llm_success",
             message=f"LLM request completed: {latency_ms}ms",
             request_id=context.request_id,
             user_id=str(context.user_id) if context.user_id else None,
-            extra={
-                "provider": PROVIDER,
-                "model": MODEL,
-                "agent_id": context.agent_id,
-                "latency_ms": latency_ms,
-                "tokens_in": tokens_in,
-                "tokens_out": tokens_out,
-                "estimated_cost": estimated_cost,
-                "success": True,
-            }
+            extra=extra_llm_success
         )
         
         return {
@@ -215,21 +222,24 @@ async def generate_conversation(
         db.commit()
         
         # Log failure event
+        extra_llm_failure = {
+            "provider": PROVIDER,
+            "model": MODEL,
+            "agent_id": context.agent_id,
+            "latency_ms": latency_ms,
+            "error_code": error_code,
+            "error_message": error_message,
+            "success": False,
+        }
+        if context.learning_phase:
+            extra_llm_failure["learning_phase"] = context.learning_phase
         log_event(
             level="error",
             event="llm_failure",
             message=f"LLM request failed: {error_code} - {error_message}",
             request_id=context.request_id,
             user_id=str(context.user_id) if context.user_id else None,
-            extra={
-                "provider": PROVIDER,
-                "model": MODEL,
-                "agent_id": context.agent_id,
-                "latency_ms": latency_ms,
-                "error_code": error_code,
-                "error_message": error_message,
-                "success": False,
-            }
+            extra=extra_llm_failure
         )
         
         # Re-raise exception
