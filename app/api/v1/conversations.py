@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import get_current_user, get_current_user_from_query
-from app.models import User, Conversation, Situation, SituationWord, Word, UserWord
+from app.models import User, Conversation, Situation, Word
+from app.services.word_selection_service import select_words_for_situation, sort_words_encounter_first
 from app.schemas import (
     CreateConversationRequest,
     CreateConversationResponse,
@@ -11,7 +12,6 @@ from app.schemas import (
     VoiceTurnResponse,
     WordSchema
 )
-from app.services.openai_service import generate_text, transcribe_audio, generate_speech  # Deprecated, use gateways
 from app.services.llm_gateway import generate_conversation, ConversationContext, load_prompt
 from app.services.openai_media_gateway import transcribe_audio as gateway_transcribe_audio, synthesize_speech as gateway_synthesize_speech
 from fastapi import Request
@@ -22,9 +22,8 @@ from app.services.conversation_service import (
     get_missing_word_ids
 )
 from app.services.encounter_messages import get_initial_message_for_encounter
+from app.services.voice_turn_service import build_transcription_prompt, build_conversation_prompt
 from app.utils.audio import generate_audio_filename, get_audio_path, get_audio_url
-import json
-
 router = APIRouter()
 
 
@@ -51,31 +50,20 @@ async def create_conversation(
         Conversation.user_id == current_user.id,
         Conversation.situation_id == request.situation_id,
         Conversation.mode == "text"
-    ).order_by(Conversation.created_at.desc()).first()
+    ).order_by(Conversation.created_at.desc()).with_for_update().first()
     
     if existing_conv and existing_conv.target_word_ids:
         # Reuse existing conversation's words
         target_word_ids = existing_conv.target_word_ids
         words = get_words_by_ids(db, target_word_ids)
-        
-        # Sort words: encounter words first, then high frequency
-        word_dict = {w.id: w for w in words}
-        situation_words = db.query(SituationWord).filter(
-            SituationWord.situation_id == request.situation_id
-        ).order_by(SituationWord.position).all()
-        encounter_word_ids = [sw.word_id for sw in situation_words]
-        high_freq_word_ids = [wid for wid in target_word_ids if wid not in encounter_word_ids]
-        
-        sorted_encounter_words = [word_dict[wid] for wid in encounter_word_ids if wid in word_dict]
-        sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids if wid in word_dict]
-        final_words = sorted_encounter_words + sorted_high_freq_words
+        final_words = sort_words_encounter_first(words, request.situation_id, db, target_word_ids)
         
         # Create or get voice conversation with same words
         voice_conv = db.query(Conversation).filter(
             Conversation.user_id == current_user.id,
             Conversation.situation_id == request.situation_id,
             Conversation.mode == "voice"
-        ).order_by(Conversation.created_at.desc()).first()
+        ).order_by(Conversation.created_at.desc()).with_for_update().first()
         
         if not voice_conv:
             voice_conv = Conversation(
@@ -99,32 +87,10 @@ async def create_conversation(
     else:
         # No existing conversation - this shouldn't happen if startSituation was called first
         # But create one anyway as fallback
-        situation_words = db.query(SituationWord).filter(
-            SituationWord.situation_id == request.situation_id
-        ).order_by(SituationWord.position).all()
-        
-        encounter_word_ids = [sw.word_id for sw in situation_words]
-        
-        learned_word_ids = set(
-            word_id[0] for word_id in 
-            db.query(UserWord.word_id).filter(UserWord.user_id == current_user.id).all()
-        )
-        
-        high_freq_words = db.query(Word).filter(
-            Word.word_category == 'high_frequency',
-            ~Word.id.in_(learned_word_ids) if learned_word_ids else True
-        ).order_by(Word.frequency_rank.asc().nullslast()).limit(2).all()
-        
-        high_freq_word_ids = [w.id for w in high_freq_words]
+        encounter_word_ids, high_freq_word_ids = select_words_for_situation(db, current_user.id, request.situation_id)
         target_word_ids = encounter_word_ids + high_freq_word_ids
-        
-        all_word_ids = encounter_word_ids + high_freq_word_ids
-        all_words = db.query(Word).filter(Word.id.in_(all_word_ids)).all()
-        
-        word_dict = {w.id: w for w in all_words}
-        sorted_encounter_words = [word_dict[wid] for wid in encounter_word_ids]
-        sorted_high_freq_words = [word_dict[wid] for wid in high_freq_word_ids]
-        final_words = sorted_encounter_words + sorted_high_freq_words
+        all_words = db.query(Word).filter(Word.id.in_(target_word_ids)).all()
+        final_words = sort_words_encounter_first(all_words, request.situation_id, db, target_word_ids)
         
         conversation = Conversation(
             user_id=current_user.id,
@@ -202,13 +168,9 @@ async def voice_turn(
     db_time = time.time() - db_start
     logger.info(f"[Voice Turn] DB queries: {db_time:.2f}s")
     
-    # Build prompt to help Whisper with Spanish vocabulary and context
-    # Include target words and situation context to improve transcription accuracy
-    target_words_list = ", ".join([f"{w.spanish} ({w.english})" for w in words])
-    transcription_prompt = f"""This is a conversation about {situation.title if situation else 'a situation'}.
-The user is learning Spanish and may use these Spanish words: {target_words_list}.
-The conversation is in Spanish and English. Focus on accurate Spanish transcription.
-Common Spanish words that may appear: tamaño, talla, número, grande, pequeño, mediano."""
+    transcription_prompt = build_transcription_prompt(
+        situation.title if situation else "a situation", words
+    )
     
     stt_start = time.time()
     user_transcript = await gateway_transcribe_audio(
@@ -242,25 +204,13 @@ Common Spanish words that may appear: tamaño, talla, número, grande, pequeño,
     logger.info(f"[Voice Turn] DB updates: {update_time:.2f}s")
     
     # Step 5: Generate assistant_text via OpenAI
-    # Situation already loaded above
-    target_words = [f"{w.spanish} ({w.english})" for w in words]
-    used_words = [w.spanish for w in words if w.id in (conversation.used_spoken_word_ids or [])]
-    missing_words = [w.spanish for w in words if w.id not in (conversation.used_spoken_word_ids or [])]
-    
-    # Load system prompt from prompts.json
     system_prompt = load_prompt("conversation_agent", "v1")
-    
-    missing_words_info = []
-    for word in words:
-        if word.id not in (conversation.used_spoken_word_ids or []):
-            missing_words_info.append(f"{word.spanish} ({word.english})")
-    
-    user_prompt = f"""Situation: {situation.title}
-Still need: {', '.join(missing_words_info) if missing_words_info else 'All words used'}
-Already used: {', '.join(used_words) if used_words else 'None'}
-User said: {user_transcript}
-
-Ask a natural question requiring a missing Spanish word. Do NOT mention the Spanish word. Return JSON only."""
+    user_prompt = build_conversation_prompt(
+        situation.title,
+        words,
+        conversation.used_spoken_word_ids or [],
+        user_transcript,
+    )
     
     # Use LLM gateway
     gen_start = time.time()
@@ -324,4 +274,3 @@ Ask a natural question requiring a missing Spanish word. Do NOT mention the Span
         assistant_audio_url=assistant_audio_url,
         conversation_complete=conversation_complete
     )
-

@@ -100,17 +100,3 @@ async def generate_speech(text: str, output_path: str) -> str:
     
     return output_path
 
-
-    with open(output_path, "wb") as f:
-        for chunk in response.iter_bytes():
-            f.write(chunk)
-    
-    return output_path
-
-
-    with open(output_path, "wb") as f:
-        for chunk in response.iter_bytes():
-            f.write(chunk)
-    
-    return output_path
-

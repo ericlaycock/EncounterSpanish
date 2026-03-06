@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert
 from app.models import Conversation, UserWord, Word
+from app.config import settings
 from typing import List
 
 
@@ -23,31 +25,39 @@ def update_user_word_stats(
 ):
     """Update user word statistics"""
     for word_id in word_ids:
-        user_word = db.query(UserWord).filter(
-            UserWord.user_id == user_id,
-            UserWord.word_id == word_id
-        ).first()
-        
-        if user_word:
-            if mode == "text":
-                user_word.typed_correct_count += 1
-            else:  # voice
-                user_word.spoken_correct_count += 1
-                # If spoken_correct_count >= 2, mark as mastered
-                if user_word.spoken_correct_count >= 2:
-                    user_word.status = "mastered"
-        else:
-            # Create new user_word entry
-            user_word = UserWord(
+        if mode == "text":
+            stmt = insert(UserWord).values(
                 user_id=user_id,
                 word_id=word_id,
                 seen_count=1,
-                typed_correct_count=1 if mode == "text" else 0,
-                spoken_correct_count=1 if mode == "voice" else 0,
-                status="mastered" if mode == "voice" else "learning"
+                typed_correct_count=1,
+                spoken_correct_count=0,
+                status="learning"
+            ).on_conflict_do_update(
+                index_elements=["user_id", "word_id"],
+                set_={"typed_correct_count": UserWord.typed_correct_count + 1}
             )
-            db.add(user_word)
-    
+            db.execute(stmt)
+        else:  # voice
+            stmt = insert(UserWord).values(
+                user_id=user_id,
+                word_id=word_id,
+                seen_count=1,
+                typed_correct_count=0,
+                spoken_correct_count=1,
+                status="learning"
+            ).on_conflict_do_update(
+                index_elements=["user_id", "word_id"],
+                set_={"spoken_correct_count": UserWord.spoken_correct_count + 1}
+            )
+            db.execute(stmt)
+            # Update status if mastery threshold met
+            db.query(UserWord).filter(
+                UserWord.user_id == user_id,
+                UserWord.word_id == word_id,
+                UserWord.spoken_correct_count >= settings.mastery_spoken_threshold
+            ).update({"status": "mastered"})
+
     db.commit()
 
 

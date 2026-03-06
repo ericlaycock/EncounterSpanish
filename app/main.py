@@ -48,7 +48,7 @@ from app.models import Base
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Run migrations and wake up the app
-    print("🚀 Encounter Spanish API starting up...")
+    print("🚀 Spanish for Expats API starting up...")
     
     # Test database connection first with retries
     from app.database import test_connection
@@ -108,10 +108,10 @@ async def lifespan(app: FastAPI):
     
     yield
     # Shutdown
-    print("👋 Encounter Spanish API shutting down...")
+    print("👋 Spanish for Expats API shutting down...")
 
 app = FastAPI(
-    title="Encounter Spanish API",
+    title="Spanish for Expats API",
     description="Backend API for Spanish survival language app",
     version="1.0.0",
     lifespan=lifespan
@@ -135,72 +135,99 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Manual CORS handler - ensures headers are set even on exceptions
-@app.middleware("http")
-async def add_cors_header(request: Request, call_next):
-    import traceback
-    try:
-        logger.info(f"📥 {request.method} {request.url.path} - Headers: {dict(request.headers)}")
-        response = await call_next(request)
-        logger.info(f"📤 {request.method} {request.url.path} - Status: {response.status_code}")
-    except Exception as e:
-        # Log the full error with traceback
-        error_trace = traceback.format_exc()
-        logger.error(f"❌ ERROR in {request.method} {request.url.path}: {str(e)}")
-        logger.error(f"📋 Full traceback:\n{error_trace}")
-        # Create error response with CORS headers
-        response = JSONResponse(
-            content={"detail": str(e), "error_type": type(e).__name__},
-            status_code=500,
-        )
-    
-    # Always add CORS headers to every response
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Expose-Headers"] = "*"
-    return response
-
-# Global exception handlers with CORS
+# Global exception handlers
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    import traceback
-    logger.warning(f"⚠️  HTTPException {exc.status_code} on {request.method} {request.url.path}: {exc.detail}")
-    logger.debug(f"📋 Traceback:\n{traceback.format_exc()}")
+    from app.core.logger import log_event
+    from app.core.request_utils import get_user_id_from_request, get_request_id_from_request
+    
+    request_id = get_request_id_from_request(request)
+    user_id = get_user_id_from_request(request)
+    
+    # Log HTTP exception with structured logging
+    log_event(
+        level="warning" if exc.status_code < 500 else "error",
+        event="http_exception",
+        message=f"HTTPException {exc.status_code} on {request.method} {request.url.path}: {exc.detail}",
+        request_id=request_id,
+        user_id=user_id,
+        extra={
+            "status_code": exc.status_code,
+            "method": request.method,
+            "path": str(request.url.path),
+            "detail": str(exc.detail) if exc.detail else None,
+            "query_params": dict(request.query_params) if request.query_params else None,
+        }
+    )
+    
     return JSONResponse(
         content={"detail": exc.detail, "status_code": exc.status_code},
         status_code=exc.status_code,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "*",
-        }
     )
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    import traceback
-    logger.warning(f"⚠️  ValidationError 422 on {request.method} {request.url.path}")
-    logger.warning(f"📋 Validation errors: {exc.errors()}")
-    logger.debug(f"📋 Traceback:\n{traceback.format_exc()}")
+    from app.core.logger import log_event
+    from app.core.request_utils import get_user_id_from_request, get_request_id_from_request
+    
+    request_id = get_request_id_from_request(request)
+    user_id = get_user_id_from_request(request)
+    
+    # Log validation error with structured logging
+    log_event(
+        level="warning",
+        event="validation_error",
+        message=f"ValidationError 422 on {request.method} {request.url.path}",
+        request_id=request_id,
+        user_id=user_id,
+        extra={
+            "status_code": 422,
+            "method": request.method,
+            "path": str(request.url.path),
+            "validation_errors": exc.errors(),
+            "query_params": dict(request.query_params) if request.query_params else None,
+        }
+    )
+    
     return JSONResponse(
         content={"detail": exc.errors(), "status_code": 422},
         status_code=422,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "*",
-        }
     )
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     import traceback
+    from app.core.logger import log_event
+    from app.core.request_utils import get_user_id_from_request, get_request_id_from_request
+    
+    request_id = get_request_id_from_request(request)
+    user_id = get_user_id_from_request(request)
     error_trace = traceback.format_exc()
+    
+    # Log unhandled exception with structured logging
+    log_event(
+        level="error",
+        event="unhandled_exception",
+        message=f"UNHANDLED EXCEPTION on {request.method} {request.url.path}: {type(exc).__name__} - {str(exc)}",
+        request_id=request_id,
+        user_id=user_id,
+        extra={
+            "status_code": 500,
+            "method": request.method,
+            "path": str(request.url.path),
+            "exception_type": type(exc).__name__,
+            "exception_message": str(exc),
+            "traceback": error_trace,
+            "query_params": dict(request.query_params) if request.query_params else None,
+        }
+    )
+    
+    # Also log to Python logger for backward compatibility
     logger.error(f"❌ UNHANDLED EXCEPTION on {request.method} {request.url.path}")
     logger.error(f"❌ Exception type: {type(exc).__name__}")
     logger.error(f"❌ Exception message: {str(exc)}")
     logger.error(f"📋 Full traceback:\n{error_trace}")
+    
     return JSONResponse(
         content={
             "detail": "Internal server error",
@@ -208,11 +235,6 @@ async def general_exception_handler(request: Request, exc: Exception):
             "error_message": str(exc)
         },
         status_code=500,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "*",
-        }
     )
 
 # Handle OPTIONS preflight requests explicitly
@@ -253,7 +275,7 @@ logger.info("✅ All routes registered")
 
 @app.get("/")
 async def root():
-    return {"message": "Encounter Spanish API"}
+    return {"message": "Spanish for Expats API"}
 
 
 @app.get("/health")
@@ -275,6 +297,5 @@ async def test_cors():
         "message": "If you can see this, CORS is working!",
         "headers": "Check browser network tab for CORS headers"
     }
-
 
 

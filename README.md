@@ -1,4 +1,4 @@
-# Encounter Spanish Backend API
+# Spanish for Expats - Backend API
 
 FastAPI backend for the Spanish survival language learning mobile app.
 
@@ -210,6 +210,6 @@ API documentation with interactive testing available at `/docs` when server is r
 
 Proprietary - All rights reserved
 
-# EncounterSpanish
+# Spanish for Expats
 
 

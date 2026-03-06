@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import List, Optional
@@ -58,6 +58,17 @@ async def mark_typed_correct(
     db: Session = Depends(get_db)
 ):
     """Increment typed_correct_count for specified words"""
+    # Validate all word IDs exist
+    existing_ids = {
+        row[0] for row in db.query(Word.id).filter(Word.id.in_(request.word_ids)).all()
+    }
+    invalid_ids = set(request.word_ids) - existing_ids
+    if invalid_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid word IDs: {sorted(invalid_ids)}"
+        )
+
     for word_id in request.word_ids:
         user_word = db.query(UserWord).filter(
             UserWord.user_id == current_user.id,

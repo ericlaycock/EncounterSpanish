@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "CHANGE_THIS_IN_PRODUCTION"  # Default for development
     jwt_algorithm: str = "HS256"
     jwt_expiration_hours: int = 24
+    mastery_spoken_threshold: int = 2
     
     class Config:
         env_file = ".env"

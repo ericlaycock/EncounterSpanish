@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Text, JSON
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Text, JSON, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -62,6 +62,7 @@ class Situation(Base):
     series_number = Column(Integer, nullable=False)  # e.g., 1, 2, 3 for Banking 1, Banking 2, etc.
     order_index = Column(Integer, nullable=False, index=True)
     is_free = Column(Boolean, default=False, nullable=False)
+    goal = Column(Text, nullable=True)  # Goal/objective for this situation
     
     # Relationships
     situation_words = relationship("SituationWord", back_populates="situation", order_by="SituationWord.position")
@@ -83,7 +84,10 @@ class SituationWord(Base):
 
 class UserWord(Base):
     __tablename__ = "user_words"
-    
+    __table_args__ = (
+        CheckConstraint("status IN ('learning', 'mastered')", name="ck_user_words_status"),
+    )
+
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
     word_id = Column(String, ForeignKey("words.id"), primary_key=True)
     seen_count = Column(Integer, default=0, nullable=False)
@@ -91,7 +95,7 @@ class UserWord(Base):
     spoken_correct_count = Column(Integer, default=0, nullable=False)
     status = Column(String, default="learning", nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     user = relationship("User", back_populates="user_words")
     word = relationship("Word", back_populates="user_words")
@@ -112,7 +116,11 @@ class UserSituation(Base):
 
 class Conversation(Base):
     __tablename__ = "conversations"
-    
+    __table_args__ = (
+        CheckConstraint("mode IN ('text', 'voice')", name="ck_conversations_mode"),
+        CheckConstraint("status IN ('active', 'complete')", name="ck_conversations_status"),
+    )
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     situation_id = Column(String, ForeignKey("situations.id"), nullable=False)
@@ -121,26 +129,6 @@ class Conversation(Base):
     used_typed_word_ids = Column(JSONB, default=list, nullable=False)
     used_spoken_word_ids = Column(JSONB, default=list, nullable=False)
     status = Column(String, default="active", nullable=False)  # 'active' or 'complete'
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    user = relationship("User", back_populates="conversations")
-    situation = relationship("Situation", back_populates="conversations")
-
-
-
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    user = relationship("User", back_populates="conversations")
-    situation = relationship("Situation", back_populates="conversations")
-
-
-
-
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
