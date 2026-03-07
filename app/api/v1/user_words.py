@@ -45,7 +45,9 @@ async def get_user_words(
                 seen_count=uw.seen_count,
                 typed_correct_count=uw.typed_correct_count,
                 spoken_correct_count=uw.spoken_correct_count,
-                status=uw.status
+                status=uw.status,
+                word_category=word.word_category,
+                frequency_rank=word.frequency_rank,
             ))
     
     return result

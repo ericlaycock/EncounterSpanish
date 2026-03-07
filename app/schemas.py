@@ -78,6 +78,8 @@ class UserWordSchema(BaseModel):
     typed_correct_count: int
     spoken_correct_count: int
     status: str
+    word_category: Optional[str] = None
+    frequency_rank: Optional[int] = None
 
     class Config:
         from_attributes = True
