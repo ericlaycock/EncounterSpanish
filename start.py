@@ -9,7 +9,12 @@ import uvicorn
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":
-    # Run QA seed script if in QA environment
+    # Run migrations before anything else if AUTO_MIGRATE is enabled
+    if os.environ.get("AUTO_MIGRATE", "false").lower() == "true":
+        print("Running database migrations...")
+        subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True)
+
+    # Run QA seed script if in QA environment (after migrations)
     if os.environ.get("ENVIRONMENT") == "qa":
         print("Running QA seed script...")
         subprocess.run([sys.executable, "scripts/seed_qa.py"], check=True)
