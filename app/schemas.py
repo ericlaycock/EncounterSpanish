@@ -119,6 +119,18 @@ class VoiceTurnResponse(BaseModel):
     conversation_complete: bool
 
 
+# Grammar config schemas
+class GrammarConfigResponse(BaseModel):
+    situation_type: str
+    video_embed_id: Optional[str] = None
+    drill_type: Optional[str] = None
+    tense: Optional[str] = None
+    phases: dict
+    drill_config: Optional[dict] = None
+    phase_1c_config: Optional[dict] = None
+    phase_2_config: Optional[dict] = None
+
+
 # Error schemas
 class ErrorResponse(BaseModel):
     error: str

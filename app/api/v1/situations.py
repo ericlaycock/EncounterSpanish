@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.database import get_db
 from app.auth import get_current_user
-from app.models import User, Situation, UserSituation, Word
+from app.models import User, Situation, UserSituation, UserWord, Word
 from app.services.subscription_service import check_paywall
 from app.schemas import (
     SituationListItem,
     SituationDetail,
     StartSituationResponse,
     CompleteSituationResponse,
+    GrammarConfigResponse,
     WordSchema
 )
 from app.services.word_selection_service import (
@@ -17,10 +18,20 @@ from app.services.word_selection_service import (
     sort_words_encounter_first,
     ensure_user_words,
 )
+from app.data.grammar_situations import get_grammar_config, get_all_grammar_situation_ids, GRAMMAR_SITUATIONS
 from pydantic import BaseModel
 from typing import List, Optional
 
 router = APIRouter()
+
+
+def get_vocab_level(db: Session, user_id) -> int:
+    """Count of high-frequency words with status learning/mastered."""
+    return db.query(UserWord).join(Word).filter(
+        UserWord.user_id == user_id,
+        Word.word_category == 'high_frequency',
+        UserWord.status.in_(['learning', 'mastered'])
+    ).count()
 
 
 
@@ -103,6 +114,40 @@ async def get_selected_situations(
         ))
     
     return result
+
+
+@router.get("/grammar-gates")
+async def get_grammar_gates(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get active grammar gates for the current user based on vocab level."""
+    vocab_level = get_vocab_level(db, current_user.id)
+
+    completed_situations = {
+        us.situation_id
+        for us in db.query(UserSituation).filter(
+            UserSituation.user_id == current_user.id,
+            UserSituation.completed_at.isnot(None)
+        ).all()
+    }
+
+    gates = []
+    for sid in get_all_grammar_situation_ids():
+        cfg = GRAMMAR_SITUATIONS[sid]
+        if cfg["vocab_level"] <= vocab_level and sid not in completed_situations:
+            gates.append({
+                "situation_id": sid,
+                "title": cfg["title"],
+                "vocab_level_required": cfg["vocab_level"],
+                "video_embed_id": cfg["video_embed_id"],
+            })
+
+    return {
+        "vocab_level": vocab_level,
+        "gates": gates,
+        "is_gated": len(gates) > 0,
+    }
 
 
 @router.get("", response_model=list[SituationListItem])
@@ -298,3 +343,38 @@ async def complete_situation(
         next_situation_id = next_situation.id if next_situation else None
     
     return CompleteSituationResponse(next_situation_id=next_situation_id)
+
+
+@router.get("/{situation_id}/grammar-config", response_model=GrammarConfigResponse)
+async def get_grammar_config_endpoint(
+    situation_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get grammar config for a situation (phases, drill type, video embed, drill answers)."""
+    situation = db.query(Situation).filter(Situation.id == situation_id).first()
+    if not situation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Situation not found")
+
+    config = get_grammar_config(situation_id)
+    if not config:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not a grammar situation")
+
+    drill_config = None
+    if config["drill_type"] == "article_matching" and "drill_config" in config:
+        drill_config = config["drill_config"]
+    elif config["drill_type"] in ("gustar", "gustar_prefix"):
+        drill_config = config.get("drill_config")
+
+    return GrammarConfigResponse(
+        situation_type=situation.situation_type,
+        video_embed_id=config["video_embed_id"],
+        drill_type=config["drill_type"],
+        tense=config["tense"],
+        phases=config["phases"],
+        drill_config=drill_config,
+        phase_1c_config=config.get("phase_1c_config"),
+        phase_2_config=config.get("phase_2_config"),
+    )
+
+

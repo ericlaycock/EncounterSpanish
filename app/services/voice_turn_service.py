@@ -1,5 +1,66 @@
-from typing import List
+from typing import List, Optional
 from app.models import Word, Situation
+from app.data.grammar_situations import get_grammar_config
+
+
+def build_grammar_system_prompt(situation_id: str) -> Optional[str]:
+    """Build a system prompt for grammar conversation phases (2/3).
+
+    Returns None if not a grammar situation.
+    """
+    config = get_grammar_config(situation_id)
+    if not config:
+        return None
+
+    tense = config["tense"]
+    title = config["title"]
+    p2_config = config.get("phase_2_config")
+
+    if tense == "pronouns":
+        agent_type = "grammar_pronouns_agent"
+    elif tense == "gustar":
+        agent_type = "grammar_gustar_agent"
+    else:
+        agent_type = "grammar_conjugation_agent"
+
+    from app.services.llm_gateway import load_prompt
+    base_prompt = load_prompt(agent_type, "v1")
+
+    details = f"\n\nGrammar Situation: {title}\nTense: {tense}\n"
+    if p2_config:
+        details += f"Goal: {p2_config.get('description', '')}\n"
+        if "targets" in p2_config and isinstance(p2_config["targets"], list):
+            target_strs = []
+            for t in p2_config["targets"]:
+                if "verb" in t and "pronoun" in t:
+                    target_strs.append(f"{t['pronoun']} + {t['verb']}")
+                elif "word" in t:
+                    target_strs.append(t["word"])
+            details += f"Target combos to practice: {', '.join(target_strs)}\n"
+        elif "verbs" in p2_config:
+            details += f"Verbs: {', '.join(p2_config['verbs'])}\n"
+            details += f"Pronoun pattern: {p2_config.get('pronoun_pattern', 'all')}\n"
+
+    return base_prompt + details
+
+
+def build_grammar_user_prompt(
+    situation_title: str,
+    used_spoken_word_ids: List[str],
+    user_transcript: str,
+    config: dict,
+) -> str:
+    """Build user prompt for grammar conversation turn."""
+    p2_config = config.get("phase_2_config", {}) or {}
+    targets = p2_config.get("targets", [])
+    description = p2_config.get("description", "Practice grammar structures")
+
+    return (
+        f"Grammar Situation: {situation_title}\n"
+        f"Goal: {description}\n"
+        f"User said: {user_transcript}\n\n"
+        f"Continue the practice session. Return JSON only."
+    )
 
 
 def build_transcription_prompt(situation_title: str, words: List[Word]) -> str:

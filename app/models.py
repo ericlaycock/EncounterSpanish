@@ -63,7 +63,10 @@ class Situation(Base):
     order_index = Column(Integer, nullable=False, index=True)
     is_free = Column(Boolean, default=False, nullable=False)
     goal = Column(Text, nullable=True)  # Goal/objective for this situation
-    
+    situation_type = Column(String, default='main', nullable=False)  # 'main' or 'grammar'
+    vocab_level_required = Column(Integer, nullable=True)  # null for main situations
+    video_embed_id = Column(String, nullable=True)  # Descript embed ID for grammar video
+
     # Relationships
     situation_words = relationship("SituationWord", back_populates="situation", order_by="SituationWord.position")
     user_situations = relationship("UserSituation", back_populates="situation")

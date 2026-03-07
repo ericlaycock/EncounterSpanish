@@ -103,6 +103,45 @@ def seed():
             ).on_conflict_do_nothing()
             db.execute(stmt)
 
+        # --- Grammar situations + words ---
+        from app.data.grammar_situations import GRAMMAR_SITUATIONS
+
+        # Create grammar words (word_category='grammar')
+        grammar_word_set = set()
+        for sid, cfg in GRAMMAR_SITUATIONS.items():
+            for word in cfg["word_workload"]:
+                if word not in grammar_word_set:
+                    grammar_word_set.add(word)
+                    word_id = f"grammar_{word}"
+                    stmt = insert(Word).values(
+                        id=word_id, spanish=word, english=word,
+                        word_category="grammar"
+                    ).on_conflict_do_nothing()
+                    db.execute(stmt)
+
+        # Create grammar situation records and SituationWord links
+        order_offset = 1000  # High order_index so they don't interfere with main situations
+        for sid, cfg in GRAMMAR_SITUATIONS.items():
+            stmt = insert(Situation).values(
+                id=sid,
+                title=cfg["title"],
+                category="grammar",
+                series_number=cfg["vocab_level"],
+                order_index=order_offset + cfg["vocab_level"],
+                is_free=True,
+                situation_type="grammar",
+                vocab_level_required=cfg["vocab_level"],
+                video_embed_id=cfg["video_embed_id"],
+            ).on_conflict_do_nothing()
+            db.execute(stmt)
+
+            for pos, word in enumerate(cfg["word_workload"], 1):
+                word_id = f"grammar_{word}"
+                stmt = insert(SituationWord).values(
+                    situation_id=sid, word_id=word_id, position=pos
+                ).on_conflict_do_nothing()
+                db.execute(stmt)
+
         # --- Test user ---
         password_hash = get_password_hash("testpassword123")
         test_user_id = "00000000-0000-0000-0000-000000000001"

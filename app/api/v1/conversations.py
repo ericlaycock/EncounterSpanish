@@ -22,7 +22,8 @@ from app.services.conversation_service import (
     get_missing_word_ids
 )
 from app.services.encounter_messages import get_initial_message_for_encounter
-from app.services.voice_turn_service import build_transcription_prompt, build_conversation_prompt
+from app.services.voice_turn_service import build_transcription_prompt, build_conversation_prompt, build_grammar_system_prompt, build_grammar_user_prompt
+from app.data.grammar_situations import get_grammar_config
 from app.utils.audio import generate_audio_filename, get_audio_path, get_audio_url
 router = APIRouter()
 
@@ -204,13 +205,23 @@ async def voice_turn(
     logger.info(f"[Voice Turn] DB updates: {update_time:.2f}s")
     
     # Step 5: Generate assistant_text via OpenAI
-    system_prompt = load_prompt("conversation_agent", "v1")
-    user_prompt = build_conversation_prompt(
-        situation.title,
-        words,
-        conversation.used_spoken_word_ids or [],
-        user_transcript,
-    )
+    grammar_config = get_grammar_config(conversation.situation_id)
+    if grammar_config:
+        system_prompt = build_grammar_system_prompt(conversation.situation_id)
+        user_prompt = build_grammar_user_prompt(
+            situation.title,
+            conversation.used_spoken_word_ids or [],
+            user_transcript,
+            grammar_config,
+        )
+    else:
+        system_prompt = load_prompt("conversation_agent", "v1")
+        user_prompt = build_conversation_prompt(
+            situation.title,
+            words,
+            conversation.used_spoken_word_ids or [],
+            user_transcript,
+        )
     
     # Use LLM gateway
     gen_start = time.time()

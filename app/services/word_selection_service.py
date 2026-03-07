@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
-from app.models import Word, SituationWord, UserWord
+from app.models import Word, Situation, SituationWord, UserWord
 from typing import List, Set, Tuple
 
 
@@ -10,6 +10,21 @@ def get_learned_word_ids(db: Session, user_id) -> Set[str]:
         row[0] for row in
         db.query(UserWord.word_id).filter(UserWord.user_id == user_id).all()
     }
+
+
+def select_words_for_grammar_situation(
+    db: Session,
+    situation_id: str,
+) -> Tuple[List[str], List[str]]:
+    """Select all words for a grammar situation (no high-freq onboarding).
+
+    Returns (grammar_word_ids, []) — empty list for high-freq to match interface.
+    """
+    situation_words = db.query(SituationWord).filter(
+        SituationWord.situation_id == situation_id
+    ).order_by(SituationWord.position).all()
+    grammar_word_ids = [sw.word_id for sw in situation_words]
+    return grammar_word_ids, []
 
 
 def select_words_for_situation(
@@ -22,7 +37,12 @@ def select_words_for_situation(
     """Select encounter + high-frequency words for a situation.
 
     Returns (encounter_word_ids, high_freq_word_ids).
+    For grammar situations, returns all grammar words with no high-freq.
     """
+    situation = db.query(Situation).filter(Situation.id == situation_id).first()
+    if situation and situation.situation_type == 'grammar':
+        return select_words_for_grammar_situation(db, situation_id)
+
     situation_words = db.query(SituationWord).filter(
         SituationWord.situation_id == situation_id
     ).order_by(SituationWord.position).limit(encounter_limit).all()
