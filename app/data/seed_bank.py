@@ -5,6 +5,8 @@ are defined here. Grammar situations are in grammar_situations.py.
 The seed script (scripts/seed_qa.py) reads from this module.
 """
 
+from app.data.hf_words import HIGH_FREQUENCY_WORDS  # noqa: F401 — re-exported
+
 # --- Category display names (used by API and onboarding) ---
 
 CATEGORY_NAMES = {
@@ -20,20 +22,7 @@ CATEGORY_NAMES = {
     "restaurant": "Eating Out",
 }
 
-# --- High-frequency words (ordered by rank) ---
-
-HIGH_FREQUENCY_WORDS = [
-    {"id": "hf_1", "spanish": "hola", "english": "hello", "frequency_rank": 1},
-    {"id": "hf_2", "spanish": "gracias", "english": "thank you", "frequency_rank": 2},
-    {"id": "hf_3", "spanish": "por favor", "english": "please", "frequency_rank": 3},
-    {"id": "hf_4", "spanish": "si", "english": "yes", "frequency_rank": 4},
-    {"id": "hf_5", "spanish": "no", "english": "no", "frequency_rank": 5},
-    {"id": "hf_6", "spanish": "bueno", "english": "good", "frequency_rank": 6},
-    {"id": "hf_7", "spanish": "donde", "english": "where", "frequency_rank": 7},
-    {"id": "hf_8", "spanish": "cuanto", "english": "how much", "frequency_rank": 8},
-    {"id": "hf_9", "spanish": "necesito", "english": "I need", "frequency_rank": 9},
-    {"id": "hf_10", "spanish": "quiero", "english": "I want", "frequency_rank": 10},
-]
+# HIGH_FREQUENCY_WORDS is imported from app.data.hf_words (1000 entries)
 
 # --- Encounter words by category ---
 
