@@ -19,6 +19,7 @@ class RegisterRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     user_id: UUID
+    is_admin: bool = False
 
 
 # Subscription schemas

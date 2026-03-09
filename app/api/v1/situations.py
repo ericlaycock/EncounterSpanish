@@ -26,6 +26,34 @@ from typing import List, Optional
 router = APIRouter()
 
 
+class AdminSituationItem(BaseModel):
+    id: str
+    title: str
+    category: str
+    situation_type: str
+
+
+@router.get("/admin/all", response_model=List[AdminSituationItem])
+async def get_admin_all_situations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Return all situations for admin users (no paywall/lock checks)."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    situations = db.query(Situation).order_by(Situation.category, Situation.order_index).all()
+    return [
+        AdminSituationItem(
+            id=s.id,
+            title=s.title,
+            category=s.category,
+            situation_type=s.situation_type,
+        )
+        for s in situations
+    ]
+
+
 def get_vocab_level(db: Session, user_id) -> int:
     """Count of high-frequency words with status learning/mastered."""
     return db.query(UserWord).join(Word).filter(
@@ -156,9 +184,12 @@ async def list_situations(
         user_situation = user_situations.get(situation.id)
         completed = user_situation is not None and user_situation.completed_at is not None
         
-        # Check if locked (paywall)
-        allowed, _ = check_paywall(db, str(current_user.id), situation.id)
-        is_locked = not allowed
+        # Check if locked (paywall) — admin sees everything unlocked
+        if current_user.is_admin:
+            is_locked = False
+        else:
+            allowed, _ = check_paywall(db, str(current_user.id), situation.id)
+            is_locked = not allowed
         
         result.append(SituationListItem(
             id=situation.id,
@@ -187,15 +218,16 @@ async def get_situation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Situation not found"
         )
-    
-    # Check paywall
-    allowed, error = check_paywall(db, str(current_user.id), situation_id)
-    if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"error": error}
-        )
-    
+
+    # Check paywall (admin bypasses)
+    if not current_user.is_admin:
+        allowed, error = check_paywall(db, str(current_user.id), situation_id)
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": error}
+            )
+
     # Select and sort words
     encounter_word_ids, high_freq_word_ids = select_words_for_situation(db, current_user.id, situation_id)
     target_word_ids = encounter_word_ids + high_freq_word_ids
@@ -226,15 +258,16 @@ async def start_situation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Situation not found"
         )
-    
-    # Check paywall
-    allowed, error = check_paywall(db, str(current_user.id), situation_id)
-    if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"error": error}
-        )
-    
+
+    # Check paywall (admin bypasses)
+    if not current_user.is_admin:
+        allowed, error = check_paywall(db, str(current_user.id), situation_id)
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": error}
+            )
+
     # Get or create conversation - THIS IS THE SINGLE SOURCE OF TRUTH FOR WORDS
     conversation = db.query(Conversation).filter(
         Conversation.user_id == current_user.id,

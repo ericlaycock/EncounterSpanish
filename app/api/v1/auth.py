@@ -39,7 +39,7 @@ async def register(credentials: RegisterRequest, db: Session = Depends(get_db)):
         # Generate token
         access_token = create_access_token(data={"sub": str(user.id)})
         logger.info(f"Registration successful for user: {user.id}")
-        return LoginResponse(access_token=access_token, user_id=user.id)
+        return LoginResponse(access_token=access_token, user_id=user.id, is_admin=user.is_admin)
     except HTTPException:
         # Re-raise HTTP exceptions (validation errors)
         raise
@@ -68,7 +68,7 @@ async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     
     logger.info(f"Login successful for user: {user.id}")
     access_token = create_access_token(data={"sub": str(user.id)})
-    return LoginResponse(access_token=access_token, user_id=user.id)
+    return LoginResponse(access_token=access_token, user_id=user.id, is_admin=user.is_admin)
 
 
 

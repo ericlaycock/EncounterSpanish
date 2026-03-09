@@ -17,6 +17,7 @@ class User(Base):
     dialect = Column(String, nullable=True)  # 'mexico', 'colombia', 'costa_rica'
     grammar_score = Column(String, nullable=True)  # Quiz grammar score
     vocab_score = Column(String, nullable=True)  # Quiz vocab score
+    is_admin = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
