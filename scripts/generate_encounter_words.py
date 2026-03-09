@@ -44,10 +44,11 @@ def generate_words_for_situation(situation_title: str, category: str, existing_w
 
 Situation: "{situation_title}" (category: {CATEGORY_NAMES.get(category, category)})
 
-Generate {batch_size} sets of 3 Spanish words/short phrases each. These are for encounters {batch_start+1} through {batch_start+batch_size} within this situation.
+Generate exactly {batch_size * 3} unique Spanish words/short phrases relevant to this situation.
+These will be split into {batch_size} groups of 3 for encounters {batch_start+1} through {batch_start+batch_size}.
 
 Requirements:
-- Each set of 3 words must be UNIQUE (no word appears in more than one set)
+- All {batch_size * 3} words must be UNIQUE
 - Words must be relevant to this specific situation (things you'd actually say/hear in this scenario)
 - Include a mix of nouns, verbs, adjectives, and common phrases
 - Use Latin American Spanish (not Spain-specific)
@@ -55,16 +56,10 @@ Requirements:
 - Short phrases (2-3 words) are OK, e.g. "con tarjeta" (with card), "a la derecha" (to the right)
 - Do NOT use any of these words (already used): {existing_str}
 
-Return JSON array of {batch_size} objects, each with a "words" array of 3 items.
-Each word item has "spanish" and "english" fields.
+Return a JSON object with key "words" containing an array of exactly {batch_size * 3} objects.
+Each object has "spanish" and "english" fields.
 
-Example format:
-[
-  {{"words": [{{"spanish": "efectivo", "english": "cash"}}, {{"spanish": "firmar", "english": "to sign"}}, {{"spanish": "recibo", "english": "receipt"}}]}},
-  {{"words": [{{"spanish": "cambio", "english": "change"}}, {{"spanish": "moneda", "english": "coin"}}, {{"spanish": "billete", "english": "bill/banknote"}}]}}
-]
-
-Return ONLY the JSON array, no other text."""
+Example: {{"words": [{{"spanish": "efectivo", "english": "cash"}}, {{"spanish": "firmar", "english": "to sign"}}, ...]}}"""
 
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
@@ -77,20 +72,30 @@ Return ONLY the JSON array, no other text."""
     content = response.choices[0].message.content
     parsed = json.loads(content)
 
-    # Handle both {"data": [...]} and direct [...] formats
+    # Extract the flat word list
     if isinstance(parsed, dict):
-        for key in ["data", "words", "encounters", "sets", "results"]:
-            if key in parsed:
-                parsed = parsed[key]
+        for key in ["words", "data", "results", "vocabulary"]:
+            if key in parsed and isinstance(parsed[key], list):
+                flat_words = parsed[key]
                 break
         else:
-            # Try first list-like value
             for v in parsed.values():
                 if isinstance(v, list):
-                    parsed = v
+                    flat_words = v
                     break
+            else:
+                flat_words = []
+    else:
+        flat_words = parsed if isinstance(parsed, list) else []
 
-    return parsed
+    # Group flat words into sets of 3
+    result = []
+    for i in range(0, len(flat_words), 3):
+        chunk = flat_words[i:i+3]
+        if len(chunk) == 3:
+            result.append({"words": chunk})
+
+    return result
 
 
 def generate_all():
