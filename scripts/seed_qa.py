@@ -25,7 +25,7 @@ from app.data.seed_bank import (
     SITUATIONS,
     SITUATION_WORDS,
 )
-from app.data.grammar_situations import GRAMMAR_SITUATIONS
+from app.data.grammar_situations import GRAMMAR_SITUATIONS, GRAMMAR_WORD_TRANSLATIONS
 
 engine = create_engine(settings.database_url, pool_pre_ping=True)
 Session = sessionmaker(bind=engine)
@@ -68,10 +68,14 @@ def seed():
                 if word not in grammar_word_set:
                     grammar_word_set.add(word)
                     word_id = f"grammar_{word}"
+                    english = GRAMMAR_WORD_TRANSLATIONS.get(word, word)
                     stmt = insert(Word).values(
-                        id=word_id, spanish=word, english=word,
+                        id=word_id, spanish=word, english=english,
                         word_category="grammar"
-                    ).on_conflict_do_nothing()
+                    ).on_conflict_do_update(
+                        index_elements=["id"],
+                        set_={"english": english, "spanish": word},
+                    )
                     db.execute(stmt)
 
         order_offset = 1000
