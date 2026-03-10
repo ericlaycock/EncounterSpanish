@@ -19,6 +19,7 @@ from app.data.seed_bank import (
     SITUATION_WORDS,
     ANIMATION_NAMES,
     _SUB_SITUATIONS,
+    HIGH_FREQUENCY_WORDS,
 )
 
 # Expected sub-situations with their encounter counts
@@ -141,6 +142,36 @@ class TestNoDuplicateSpanishWords:
                 ]
                 assert not duplicates, (
                     f"{category}/{sub['title']}: duplicate Spanish words: {duplicates}"
+                )
+
+
+    def test_no_encounter_word_in_hf_list(self):
+        """No encounter word should also appear in the high-frequency list."""
+        hf_spanish = {w["spanish"] for w in HIGH_FREQUENCY_WORDS}
+        for category, sub_list in _SUB_SITUATIONS.items():
+            for sub in sub_list:
+                overlap = [w[0] for w in sub["words"] if w[0] in hf_spanish]
+                assert not overlap, (
+                    f"{category}/{sub['title']}: encounter words also in HF list: {overlap}"
+                )
+
+    def test_no_encounter_word_in_another_situation(self):
+        """No encounter word should appear in more than one sub-situation."""
+        # Build a list of (category/title, set of spanish words)
+        situation_words = []
+        for category, sub_list in _SUB_SITUATIONS.items():
+            for sub in sub_list:
+                label = f"{category}/{sub['title']}"
+                words = {w[0] for w in sub["words"]}
+                situation_words.append((label, words))
+        # Check all pairs
+        for i in range(len(situation_words)):
+            for j in range(i + 1, len(situation_words)):
+                label_a, words_a = situation_words[i]
+                label_b, words_b = situation_words[j]
+                overlap = words_a & words_b
+                assert not overlap, (
+                    f"{label_a} ∩ {label_b}: shared words: {overlap}"
                 )
 
 
