@@ -137,10 +137,6 @@ def seed():
         db.execute(text(
             "DELETE FROM user_words WHERE user_id IN (SELECT id FROM users WHERE email = 'ericlaycock44@gmail.com')"
         ))
-        db.execute(text(
-            "UPDATE users SET vocab_level = 0 WHERE email = 'ericlaycock44@gmail.com'"
-        ))
-
         # --- Set admin flag for admin user ---
         db.execute(text(
             "UPDATE users SET is_admin = true WHERE email = 'ericlaycock44@gmail.com'"
