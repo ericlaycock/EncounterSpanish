@@ -3,7 +3,7 @@
 
 Run with: python scripts/seed_qa.py
 Uses DATABASE_URL from environment (same as the app).
-Idempotent: uses ON CONFLICT DO NOTHING.
+Idempotent: uses ON CONFLICT DO UPDATE for encounter/situation data.
 
 All word/situation data comes from app/data/seed_bank.py and
 app/data/grammar_situations.py — never hardcoded here.
@@ -34,13 +34,16 @@ Session = sessionmaker(bind=engine)
 def seed():
     db = Session()
     try:
-        # --- Encounter words ---
+        # --- Encounter words (upsert to fix stale data) ---
         for category_words in ENCOUNTER_WORDS.values():
             for w in category_words:
                 stmt = insert(Word).values(
                     id=w["id"], spanish=w["spanish"], english=w["english"],
                     word_category="encounter"
-                ).on_conflict_do_nothing()
+                ).on_conflict_do_update(
+                    index_elements=["id"],
+                    set_={"spanish": w["spanish"], "english": w["english"]},
+                )
                 db.execute(stmt)
 
         # --- High-frequency words ---
@@ -51,14 +54,20 @@ def seed():
             ).on_conflict_do_nothing()
             db.execute(stmt)
 
-        # --- Situations ---
+        # --- Situations (upsert to fix stale data) ---
         for s in SITUATIONS:
-            stmt = insert(Situation).values(**s).on_conflict_do_nothing()
+            stmt = insert(Situation).values(**s).on_conflict_do_update(
+                index_elements=["id"],
+                set_={k: v for k, v in s.items() if k != "id"},
+            )
             db.execute(stmt)
 
-        # --- SituationWords ---
+        # --- SituationWords (upsert to fix stale data) ---
         for link in SITUATION_WORDS:
-            stmt = insert(SituationWord).values(**link).on_conflict_do_nothing()
+            stmt = insert(SituationWord).values(**link).on_conflict_do_update(
+                index_elements=["situation_id", "word_id"],
+                set_={"position": link["position"]},
+            )
             db.execute(stmt)
 
         # --- Grammar situations + words ---
