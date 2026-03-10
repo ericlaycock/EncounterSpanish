@@ -10,7 +10,16 @@ router = APIRouter()
 
 
 class SaveOnboardingSelectionsRequest(BaseModel):
-    selected_animation_type: str  # Single animation type ID
+    selected_category: str | None = None  # FE sends this name
+    selected_animation_type: str | None = None  # Legacy name
+
+    @property
+    def animation_type(self) -> str:
+        value = self.selected_category or self.selected_animation_type
+        if not value:
+            raise ValueError("Either selected_category or selected_animation_type is required")
+        return value
+
     dialect: str  # 'mexico', 'colombia', 'costa_rica'
     grammar_score: str | None = None  # Quiz grammar score
     vocab_score: str | None = None  # Quiz vocab score
@@ -32,10 +41,10 @@ async def save_onboarding_selections(
     valid_types = db.query(Situation.animation_type).distinct().all()
     valid_type_list = [t[0] for t in valid_types]
 
-    if request.selected_animation_type not in valid_type_list:
+    if request.animation_type not in valid_type_list:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid animation type: {request.selected_animation_type}"
+            detail=f"Invalid animation type: {request.animation_type}"
         )
 
     # Validate dialect
@@ -46,7 +55,7 @@ async def save_onboarding_selections(
             detail=f"Invalid dialect: {request.dialect}"
         )
 
-    current_user.selected_animation_types = [request.selected_animation_type]
+    current_user.selected_animation_types = [request.animation_type]
     current_user.dialect = request.dialect
     current_user.grammar_score = request.grammar_score
     current_user.vocab_score = request.vocab_score
@@ -68,8 +77,8 @@ async def get_onboarding_status(
     )
 
 
-@router.get("/available-animation-types")
-async def get_available_animation_types(
+@router.get("/available-categories")
+async def get_available_categories(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -133,4 +142,4 @@ async def get_available_animation_types(
     # Sort by name for consistent ordering
     result.sort(key=lambda x: x["name"])
 
-    return {"animation_types": result}
+    return {"categories": result}
