@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 class SaveOnboardingSelectionsRequest(BaseModel):
-    selected_category: str  # Single category ID
+    selected_animation_type: str  # Single animation type ID
     dialect: str  # 'mexico', 'colombia', 'costa_rica'
     grammar_score: str | None = None  # Quiz grammar score
     vocab_score: str | None = None  # Quiz vocab score
@@ -18,7 +18,7 @@ class SaveOnboardingSelectionsRequest(BaseModel):
 
 class OnboardingStatusResponse(BaseModel):
     onboarding_completed: bool
-    selected_categories: List[str] | None
+    selected_animation_types: List[str] | None
 
 
 @router.post("/save-selections")
@@ -27,15 +27,15 @@ async def save_onboarding_selections(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Save user's selected situation category, dialect, and quiz scores from onboarding"""
-    # Validate category exists
-    valid_categories = db.query(Situation.category).distinct().all()
-    valid_category_list = [cat[0] for cat in valid_categories]
+    """Save user's selected animation type, dialect, and quiz scores from onboarding"""
+    # Validate animation type exists
+    valid_types = db.query(Situation.animation_type).distinct().all()
+    valid_type_list = [t[0] for t in valid_types]
 
-    if request.selected_category not in valid_category_list:
+    if request.selected_animation_type not in valid_type_list:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid category: {request.selected_category}"
+            detail=f"Invalid animation type: {request.selected_animation_type}"
         )
 
     # Validate dialect
@@ -46,8 +46,7 @@ async def save_onboarding_selections(
             detail=f"Invalid dialect: {request.dialect}"
         )
 
-    # Save single category as array for backward compatibility
-    current_user.selected_situation_categories = [request.selected_category]
+    current_user.selected_animation_types = [request.selected_animation_type]
     current_user.dialect = request.dialect
     current_user.grammar_score = request.grammar_score
     current_user.vocab_score = request.vocab_score
@@ -65,19 +64,19 @@ async def get_onboarding_status(
     """Get user's onboarding status"""
     return OnboardingStatusResponse(
         onboarding_completed=current_user.onboarding_completed,
-        selected_categories=current_user.selected_situation_categories or []
+        selected_animation_types=current_user.selected_animation_types or []
     )
 
 
-@router.get("/available-categories")
-async def get_available_categories(
+@router.get("/available-animation-types")
+async def get_available_animation_types(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get list of available situation categories for onboarding"""
+    """Get list of available animation types for onboarding"""
 
-    # Only show these 10 categories for onboarding
-    allowed_categories = {
+    # Only show these 10 animation types for onboarding
+    allowed_types = {
         "airport": {
             "name": "Airport",
             "description": "Checking in, going through security"
@@ -121,17 +120,17 @@ async def get_available_categories(
     }
 
     result = []
-    for cat_id, cat_info in allowed_categories.items():
-        # Verify category exists in database
-        exists = db.query(Situation).filter(Situation.category == cat_id).first()
+    for type_id, type_info in allowed_types.items():
+        # Verify animation type exists in database
+        exists = db.query(Situation).filter(Situation.animation_type == type_id).first()
         if exists:
             result.append({
-                "id": cat_id,
-                "name": cat_info["name"],
-                "description": cat_info["description"]
+                "id": type_id,
+                "name": type_info["name"],
+                "description": type_info["description"]
             })
 
     # Sort by name for consistent ordering
     result.sort(key=lambda x: x["name"])
 
-    return {"categories": result}
+    return {"animation_types": result}

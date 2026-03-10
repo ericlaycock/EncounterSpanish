@@ -3,8 +3,8 @@ from app.models import Word, Situation
 from app.data.grammar_situations import get_grammar_config
 
 
-def get_language_mode(series_number: int, vocab_level: int) -> str:
-    """Derive language mode from encounter number and vocab level.
+def get_language_mode(encounter_number: int, vocab_level: int) -> str:
+    """Derive language mode from encounter number (1-50) and vocab level.
 
     VL < 300:
       encounters 1-20  → "english"
@@ -14,15 +14,12 @@ def get_language_mode(series_number: int, vocab_level: int) -> str:
       encounters 1-40  → "spanish_text"
       encounters 41-50 → "spanish_audio"
     """
-    # Normalize series_number to 1-50 range (for multi-series categories)
-    enc_num = ((series_number - 1) % 50) + 1
-
     if vocab_level >= 300:
-        return "spanish_audio" if enc_num > 40 else "spanish_text"
+        return "spanish_audio" if encounter_number > 40 else "spanish_text"
     else:
-        if enc_num <= 20:
+        if encounter_number <= 20:
             return "english"
-        elif enc_num <= 40:
+        elif encounter_number <= 40:
             return "spanish_text"
         else:
             return "spanish_audio"

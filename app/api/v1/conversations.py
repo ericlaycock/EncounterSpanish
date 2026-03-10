@@ -82,7 +82,7 @@ async def create_conversation(
         
         initial_message = get_initial_message_for_encounter(situation.title)
         vocab_level = get_vocab_level(db, current_user.id)
-        language_mode = get_language_mode(situation.series_number, vocab_level)
+        language_mode = get_language_mode(situation.encounter_number, vocab_level)
         return CreateConversationResponse(
             conversation_id=voice_conv.id,
             words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english, notes=w.notes) for w in final_words],
@@ -111,7 +111,7 @@ async def create_conversation(
         
         initial_message = get_initial_message_for_encounter(situation.title)
         vocab_level = get_vocab_level(db, current_user.id)
-        language_mode = get_language_mode(situation.series_number, vocab_level)
+        language_mode = get_language_mode(situation.encounter_number, vocab_level)
         return CreateConversationResponse(
             conversation_id=conversation.id,
             words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words],
@@ -214,7 +214,7 @@ async def voice_turn(
     # Step 5: Generate assistant_text via OpenAI
     # Compute language mode for prompt selection
     vocab_level = get_vocab_level(db, current_user.id)
-    language_mode = get_language_mode(situation.series_number, vocab_level)
+    language_mode = get_language_mode(situation.encounter_number, vocab_level)
 
     grammar_config = get_grammar_config(conversation.situation_id)
     if grammar_config:

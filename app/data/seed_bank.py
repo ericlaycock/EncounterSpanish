@@ -10,9 +10,9 @@ ENCOUNTER_WORDS, SITUATIONS, and SITUATION_WORDS are generated at import time.
 
 from app.data.hf_words import HIGH_FREQUENCY_WORDS  # noqa: F401 — re-exported
 
-# --- Category display names (used by API and onboarding) ---
+# --- Animation type display names (used by API and onboarding) ---
 
-CATEGORY_NAMES = {
+ANIMATION_NAMES = {
     "airport": "Airport",
     "banking": "Banking",
     "clothing": "Clothing Shopping",
@@ -996,15 +996,16 @@ ENCOUNTER_WORDS: dict[str, list[dict]] = {}
 SITUATIONS: list[dict] = []
 SITUATION_WORDS: list[dict] = []
 
+# Order index base per animation_type (ensures globally unique order_index)
+_ANIM_ORDER = list(_SUB_SITUATIONS.keys())
+
 for category, sub_list in _SUB_SITUATIONS.items():
     category_words = []
-    # For multi-sub-situation categories, offset series_number
-    # banking: sub 0 → 1-50, sub 1 → 51-100, sub 2 → 101-150
-    # restaurant: sub 0 → 1-50, sub 1 → 51-100, sub 2 → 101-150
+    anim_base = _ANIM_ORDER.index(category) * 200  # 200 slots per animation type
+
     for sub_idx, sub in enumerate(sub_list):
         prefix = sub["word_prefix"]
         words = sub["words"]
-        series_offset = sub_idx * 50
 
         for enc_num in range(1, 51):
             # Word indices: 3 words per encounter
@@ -1013,12 +1014,13 @@ for category, sub_list in _SUB_SITUATIONS.items():
             w2 = words[base + 1]
             w3 = words[base + 2]
 
-            series_number = series_offset + enc_num
-            situation_id = f"{category}_{series_number}"
+            # Each situation gets encounter_number 1-50 independently
+            # Situation ID uses word_prefix for uniqueness (e.g., bank_open_1, bank_wire_1)
+            situation_id = f"{prefix}_{enc_num}"
 
             # Encounter words
             for pos, (spanish, english) in enumerate([(w1[0], w1[1]), (w2[0], w2[1]), (w3[0], w3[1])], 1):
-                word_id = f"enc_{prefix}_{series_offset + (enc_num - 1) * 3 + pos:03d}"
+                word_id = f"enc_{prefix}_{(enc_num - 1) * 3 + pos:03d}"
                 category_words.append({
                     "id": word_id,
                     "spanish": spanish,
@@ -1034,9 +1036,9 @@ for category, sub_list in _SUB_SITUATIONS.items():
             SITUATIONS.append({
                 "id": situation_id,
                 "title": sub["title"],
-                "category": category,
-                "series_number": series_number,
-                "order_index": series_number,
+                "animation_type": category,
+                "encounter_number": enc_num,
+                "order_index": anim_base + sub_idx * 50 + enc_num,
                 "is_free": enc_num <= 5,  # First 5 encounters per sub-situation are free
                 "goal": sub["goal"],
             })

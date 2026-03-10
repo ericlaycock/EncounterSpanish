@@ -92,8 +92,8 @@ def seed():
             stmt = insert(Situation).values(
                 id=sid,
                 title=cfg["title"],
-                category="grammar",
-                series_number=cfg["vocab_level"],
+                animation_type="grammar",
+                encounter_number=cfg["vocab_level"],
                 order_index=order_offset + cfg["vocab_level"],
                 is_free=True,
                 situation_type="grammar",
@@ -117,7 +117,7 @@ def seed():
             email="qa@test.com",
             password_hash=password_hash,
             onboarding_completed=True,
-            selected_situation_categories=["banking"],
+            selected_animation_types=["banking"],
             dialect="mexico",
         ).on_conflict_do_nothing()
         db.execute(stmt)

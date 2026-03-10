@@ -13,7 +13,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     onboarding_completed = Column(Boolean, default=False, nullable=False)
-    selected_situation_categories = Column(JSONB, nullable=True)  # Now stores single category as string
+    selected_animation_types = Column(JSONB, nullable=True)  # e.g., ["banking", "restaurant"]
     dialect = Column(String, nullable=True)  # 'mexico', 'colombia', 'costa_rica'
     grammar_score = Column(String, nullable=True)  # Quiz grammar score
     vocab_score = Column(String, nullable=True)  # Quiz vocab score
@@ -59,8 +59,8 @@ class Situation(Base):
     
     id = Column(String, primary_key=True)
     title = Column(String, nullable=False)
-    category = Column(String, nullable=False, index=True)  # e.g., "banking", "small_talk", "groceries"
-    series_number = Column(Integer, nullable=False)  # e.g., 1, 2, 3 for Banking 1, Banking 2, etc.
+    animation_type = Column(String, nullable=False, index=True)  # e.g., "banking", "small_talk", "groceries"
+    encounter_number = Column(Integer, nullable=False)  # 1-50 within each situation
     order_index = Column(Integer, nullable=False, index=True)
     is_free = Column(Boolean, default=False, nullable=False)
     goal = Column(Text, nullable=True)  # Goal/objective for this situation

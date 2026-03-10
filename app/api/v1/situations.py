@@ -19,7 +19,7 @@ from app.services.word_selection_service import (
     ensure_user_words,
 )
 from app.data.grammar_situations import get_grammar_config, get_all_grammar_situation_ids, GRAMMAR_SITUATIONS
-from app.data.seed_bank import CATEGORY_NAMES
+from app.data.seed_bank import ANIMATION_NAMES
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -29,9 +29,9 @@ router = APIRouter()
 class AdminSituationItem(BaseModel):
     id: str
     title: str
-    category: str
+    animation_type: str
     situation_type: str
-    series_number: int
+    encounter_number: int
 
 
 @router.get("/admin/all", response_model=List[AdminSituationItem])
@@ -43,14 +43,14 @@ async def get_admin_all_situations(
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
-    situations = db.query(Situation).order_by(Situation.category, Situation.order_index).all()
+    situations = db.query(Situation).order_by(Situation.animation_type, Situation.order_index).all()
     return [
         AdminSituationItem(
             id=s.id,
             title=s.title,
-            category=s.category,
+            animation_type=s.animation_type,
             situation_type=s.situation_type,
-            series_number=s.series_number,
+            encounter_number=s.encounter_number,
         )
         for s in situations
     ]
@@ -67,13 +67,13 @@ def get_vocab_level(db: Session, user_id) -> int:
 
 
 class SelectedSituationProgress(BaseModel):
-    category: str
-    category_name: str
+    animation_type: str
+    animation_name: str
     current_situation_id: str
     current_situation_title: str
     current_situation_goal: Optional[str] = None
     progress: int  # e.g., 2/50
-    total_in_series: int = 50
+    total_encounters: int = 50
     vocab_level: int = 0
 
 
@@ -83,10 +83,10 @@ async def get_selected_situations(
     db: Session = Depends(get_db)
 ):
     """Get user's selected situations with progress"""
-    if not current_user.onboarding_completed or not current_user.selected_situation_categories:
+    if not current_user.onboarding_completed or not current_user.selected_animation_types:
         return []
-    
-    selected_categories = current_user.selected_situation_categories
+
+    selected_categories = current_user.selected_animation_types
     vocab_level = get_vocab_level(db, current_user.id)
     result = []
 
@@ -104,8 +104,8 @@ async def get_selected_situations(
     for category_id in selected_categories:
         # Get all situations in this category
         category_situations = db.query(Situation).filter(
-            Situation.category == category_id
-        ).order_by(Situation.series_number).all()
+            Situation.animation_type == category_id
+        ).order_by(Situation.encounter_number).all()
         
         if not category_situations:
             continue
@@ -125,13 +125,13 @@ async def get_selected_situations(
             next_situation = category_situations[-1]
         
         result.append(SelectedSituationProgress(
-            category=category_id,
-            category_name=CATEGORY_NAMES.get(category_id, category_id.replace("_", " ").title()),
+            animation_type=category_id,
+            animation_name=ANIMATION_NAMES.get(category_id, category_id.replace("_", " ").title()),
             current_situation_id=next_situation.id,
             current_situation_title=next_situation.title,
             current_situation_goal=next_situation.goal,
             progress=completed_count + 1,  # +1 because we're showing the next one
-            total_in_series=len(category_situations),
+            total_encounters=len(category_situations),
             vocab_level=vocab_level,
         ))
     
@@ -245,8 +245,8 @@ async def get_situation(
         id=situation.id,
         title=situation.title,
         free=situation.is_free,
-        series_number=situation.series_number,
-        category=situation.category,
+        encounter_number=situation.encounter_number,
+        animation_type=situation.animation_type,
         goal=situation.goal,
         words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english, notes=w.notes) for w in final_words]
     )
@@ -329,8 +329,8 @@ async def start_situation(
     
     return StartSituationResponse(
         words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english, notes=w.notes) for w in final_words],
-        series_number=situation.series_number,
-        category=situation.category,
+        encounter_number=situation.encounter_number,
+        animation_type=situation.animation_type,
         goal=situation.goal,
     )
 
@@ -357,19 +357,20 @@ async def complete_situation(
     user_situation.completed_at = datetime.utcnow()
     db.commit()
     
-    # Find next situation in the same category
+    # Find next situation in the same animation_type with matching title (same sub-situation)
     current_situation = db.query(Situation).filter(Situation.id == situation_id).first()
-    if current_situation and current_situation.category:
+    if current_situation and current_situation.animation_type:
         next_situation = db.query(Situation).filter(
             and_(
-                Situation.category == current_situation.category,
-                Situation.series_number > current_situation.series_number
+                Situation.animation_type == current_situation.animation_type,
+                Situation.title == current_situation.title,
+                Situation.encounter_number > current_situation.encounter_number
             )
-        ).order_by(Situation.series_number).first()
-        
+        ).order_by(Situation.encounter_number).first()
+
         next_situation_id = next_situation.id if next_situation else None
     else:
-        # Fallback to old behavior
+        # Fallback to order_index
         next_situation = db.query(Situation).filter(
             Situation.order_index > current_situation.order_index
         ).order_by(Situation.order_index).first()

@@ -63,8 +63,8 @@ class SituationDetail(BaseModel):
     id: str
     title: str
     free: bool
-    series_number: int = 1
-    category: str = ""
+    encounter_number: int = 1
+    animation_type: str = ""
     goal: Optional[str] = None
     words: List[WordSchema]
 
@@ -74,8 +74,8 @@ class SituationDetail(BaseModel):
 
 class StartSituationResponse(BaseModel):
     words: List[WordSchema]
-    series_number: int = 1
-    category: str = ""
+    encounter_number: int = 1
+    animation_type: str = ""
     goal: Optional[str] = None
 
 

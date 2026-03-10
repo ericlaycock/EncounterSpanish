@@ -75,21 +75,21 @@ def seed_data(db):
 
     # Situations
     situations = [
-        Situation(id="banking_1", title="Opening a Bank Account", category="banking", series_number=1, order_index=1, is_free=True),
-        Situation(id="banking_2", title="Wire Transfer", category="banking", series_number=2, order_index=2, is_free=False),
-        Situation(id="restaurant_1", title="Ordering Food", category="restaurant", series_number=1, order_index=3, is_free=True),
+        Situation(id="bank_open_1", title="Opening a Bank Account", animation_type="banking", encounter_number=1, order_index=1, is_free=True),
+        Situation(id="bank_wire_1", title="Wire Transfer", animation_type="banking", encounter_number=1, order_index=2, is_free=False),
+        Situation(id="rest_order_1", title="Ordering Food", animation_type="restaurant", encounter_number=1, order_index=3, is_free=True),
     ]
     for s in situations:
         db.add(s)
 
     # Link encounter words to situations
     situation_words = [
-        SituationWord(situation_id="banking_1", word_id="enc_1", position=1),
-        SituationWord(situation_id="banking_1", word_id="enc_2", position=2),
-        SituationWord(situation_id="banking_1", word_id="enc_3", position=3),
-        SituationWord(situation_id="restaurant_1", word_id="enc_4", position=1),
-        SituationWord(situation_id="restaurant_1", word_id="enc_5", position=2),
-        SituationWord(situation_id="restaurant_1", word_id="enc_6", position=3),
+        SituationWord(situation_id="bank_open_1", word_id="enc_1", position=1),
+        SituationWord(situation_id="bank_open_1", word_id="enc_2", position=2),
+        SituationWord(situation_id="bank_open_1", word_id="enc_3", position=3),
+        SituationWord(situation_id="rest_order_1", word_id="enc_4", position=1),
+        SituationWord(situation_id="rest_order_1", word_id="enc_5", position=2),
+        SituationWord(situation_id="rest_order_1", word_id="enc_6", position=3),
     ]
     for sw in situation_words:
         db.add(sw)
