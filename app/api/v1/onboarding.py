@@ -143,3 +143,48 @@ async def get_available_categories(
     result.sort(key=lambda x: x["name"])
 
     return {"categories": result}
+
+
+class UpdateAnimationTypesRequest(BaseModel):
+    animation_type: str
+    action: str  # 'add' or 'remove'
+
+
+@router.patch("/animation-types")
+async def update_animation_types(
+    request: UpdateAnimationTypesRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Add or remove an animation type from the user's selected list."""
+    # Validate animation type exists in DB
+    exists = db.query(Situation).filter(Situation.animation_type == request.animation_type).first()
+    if not exists:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid animation type: {request.animation_type}"
+        )
+
+    current = list(current_user.selected_animation_types or [])
+
+    if request.action == "add":
+        if request.animation_type not in current:
+            current.append(request.animation_type)
+    elif request.action == "remove":
+        if request.animation_type in current:
+            current.remove(request.animation_type)
+        if not current:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot remove last animation type"
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="action must be 'add' or 'remove'"
+        )
+
+    current_user.selected_animation_types = current
+    db.commit()
+
+    return {"selected_animation_types": current}

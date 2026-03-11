@@ -108,32 +108,33 @@ async def get_selected_situations(
         category_situations = db.query(Situation).filter(
             Situation.animation_type == category_id
         ).order_by(Situation.encounter_number).all()
-        
+
         if not category_situations:
             continue
-        
-        # Find the next situation to complete
+
+        # Find the next situation to complete (first uncompleted)
         next_situation = None
-        completed_count = 0
-        
         for situation in category_situations:
-            if situation.id in completed_situations:
-                completed_count += 1
-            elif next_situation is None:
+            if situation.id not in completed_situations:
                 next_situation = situation
-        
+                break
+
         # If all are completed, use the last one
         if next_situation is None:
             next_situation = category_situations[-1]
-        
+
+        # Count progress within the current sub-situation (same title)
+        sub_situations = [s for s in category_situations if s.title == next_situation.title]
+        sub_completed = sum(1 for s in sub_situations if s.id in completed_situations)
+
         result.append(SelectedSituationProgress(
             animation_type=category_id,
             animation_name=ANIMATION_NAMES.get(category_id, category_id.replace("_", " ").title()),
             current_situation_id=next_situation.id,
             current_situation_title=next_situation.title,
             current_situation_goal=next_situation.goal,
-            progress=completed_count + 1,  # +1 because we're showing the next one
-            total_encounters=len(category_situations),
+            progress=sub_completed,
+            total_encounters=len(sub_situations),
             vocab_level=vocab_level,
         ))
     
