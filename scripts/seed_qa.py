@@ -58,6 +58,14 @@ def seed():
             )
             db.execute(stmt)
 
+        # --- Delete orphaned situations from old seed formats ---
+        current_situation_ids = {s["id"] for s in SITUATIONS}
+        current_situation_ids.update(GRAMMAR_SITUATIONS.keys())
+        placeholders = ", ".join(f":id_{i}" for i in range(len(current_situation_ids)))
+        params = {f"id_{i}": sid for i, sid in enumerate(current_situation_ids)}
+        db.execute(text(f"DELETE FROM situation_words WHERE situation_id NOT IN ({placeholders})"), params)
+        db.execute(text(f"DELETE FROM situations WHERE id NOT IN ({placeholders})"), params)
+
         # --- Situations (upsert to fix stale data) ---
         for s in SITUATIONS:
             stmt = insert(Situation).values(**s).on_conflict_do_update(
