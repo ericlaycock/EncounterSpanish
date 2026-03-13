@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.database import get_db
 from app.auth import get_current_user
-from app.models import User, Situation, UserSituation, UserWord, Word, Conversation
+from app.models import User, Situation, UserSituation, UserWord, Word, Conversation, SituationWord
 from app.services.subscription_service import check_paywall
 from app.schemas import (
     SituationListItem,
@@ -24,6 +24,9 @@ from app.services.catalan_service import apply_catalan_mode
 from app.services.refresh_service import set_initial_mastery
 from pydantic import BaseModel
 from typing import List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -367,14 +370,33 @@ async def complete_situation(
     from datetime import datetime
     user_situation.completed_at = datetime.utcnow()
 
-    # Set initial mastery (level 0 → 1) for words from the text conversation
-    text_conv = db.query(Conversation).filter(
+    # Gather word IDs — try conversation first (any mode), fall back to situation_words
+    conv = db.query(Conversation).filter(
         Conversation.user_id == current_user.id,
         Conversation.situation_id == situation_id,
-        Conversation.mode == "text",
     ).order_by(Conversation.created_at.desc()).first()
-    if text_conv and text_conv.target_word_ids:
-        set_initial_mastery(db, current_user.id, text_conv.target_word_ids, situation_id)
+
+    word_ids = conv.target_word_ids if conv and conv.target_word_ids else []
+
+    if not word_ids:
+        word_ids = [
+            sw.word_id for sw in db.query(SituationWord.word_id).filter(
+                SituationWord.situation_id == situation_id
+            ).all()
+        ]
+        if word_ids:
+            logger.info(
+                "complete_situation: used SituationWord fallback for user=%s situation=%s (%d words)",
+                current_user.id, situation_id, len(word_ids),
+            )
+
+    if word_ids:
+        set_initial_mastery(db, current_user.id, word_ids, situation_id)
+    else:
+        logger.warning(
+            "complete_situation: no word IDs found for user=%s situation=%s",
+            current_user.id, situation_id,
+        )
 
     db.commit()
 
