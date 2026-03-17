@@ -786,7 +786,7 @@ _SUB_SITUATIONS = {
         },
         {
             "title": "Making a Reservation",
-            "goal": "Make a restaurant reservation by calling or speaking with the host",
+            "goal": "Make a restaurant reservation by speaking with the waiter",
             "word_prefix": "rest_reserve",
             "words": [
                 # Encounter 1-5 (basic essentials)
