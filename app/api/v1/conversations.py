@@ -26,7 +26,7 @@ from app.api.v1.situations import get_vocab_level
 from app.services.voice_turn_service import build_transcription_prompt, build_conversation_prompt, build_grammar_system_prompt, build_grammar_user_prompt, get_language_mode, get_conversation_system_prompt
 from app.data.grammar_situations import get_grammar_config
 from app.services.catalan_service import apply_catalan_mode
-from app.utils.audio import generate_audio_filename, get_audio_path, get_audio_url
+from app.utils.audio import generate_audio_filename, get_audio_path, get_audio_url, upload_to_r2
 router = APIRouter()
 
 # OpenAI TTS voice per situation — keyed by animation_type
@@ -313,9 +313,11 @@ async def voice_turn(
         db=db,
         learning_phase=learning_phase
     )
-    assistant_audio_url = get_audio_url(audio_filename)
+    # Upload to R2 (falls back to local URL if R2 not configured)
+    r2_url = upload_to_r2(str(audio_path), audio_filename)
+    assistant_audio_url = r2_url or get_audio_url(audio_filename)
     tts_time = time.time() - tts_start
-    logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s")
+    logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url}")
     
     # Check if conversation is complete
     conversation_complete = check_conversation_complete(conversation, "voice")
