@@ -29,6 +29,20 @@ from app.services.catalan_service import apply_catalan_mode
 from app.utils.audio import generate_audio_filename, get_audio_path, get_audio_url
 router = APIRouter()
 
+# OpenAI TTS voice per situation — keyed by animation_type
+SITUATION_VOICE_MAP = {
+    "police": "nova",        # Female, authoritative
+    "banking": "shimmer",    # Female, professional
+    "airport": "nova",       # Female, professional
+    "clothing": "shimmer",   # Female
+    "small_talk": "shimmer", # Female, older
+    "internet": "nova",      # Female, young
+    "restaurant": "echo",    # Male
+    "mechanic": "onyx",      # Male, deep
+    "groceries": "fable",    # Male
+    "contractor": "echo",    # Male
+}
+
 
 @router.post("", response_model=CreateConversationResponse)
 async def create_conversation(
@@ -289,10 +303,11 @@ async def voice_turn(
     tts_start = time.time()
     audio_filename = generate_audio_filename()
     audio_path = get_audio_path(audio_filename)
+    tts_voice = SITUATION_VOICE_MAP.get(situation.animation_type, "alloy") if situation else "alloy"
     await gateway_synthesize_speech(
         text=assistant_text,
         output_path=str(audio_path),
-        voice="alloy",
+        voice=tts_voice,
         request_id=request_id,
         user_id=str(current_user.id),
         db=db,
