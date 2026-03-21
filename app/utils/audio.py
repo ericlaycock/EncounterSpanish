@@ -70,7 +70,8 @@ def upload_to_r2(local_path: str, filename: str) -> str | None:
         logger.info(f"[R2] Uploaded {filename} → {public_url}")
         return public_url
     except Exception as e:
-        logger.error(f"[R2] Upload failed for {filename}: {e}")
+        import traceback
+        logger.error(f"[R2] Upload failed for {filename}: {e}\n{traceback.format_exc()}")
         return None
 
 

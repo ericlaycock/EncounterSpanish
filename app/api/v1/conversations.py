@@ -317,7 +317,10 @@ async def voice_turn(
     r2_url = upload_to_r2(str(audio_path), audio_filename)
     assistant_audio_url = r2_url or get_audio_url(audio_filename)
     tts_time = time.time() - tts_start
-    logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url}")
+    if r2_url:
+        logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url} (R2)")
+    else:
+        logger.warning(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url} (LOCAL FALLBACK — R2 upload failed)")
     
     # Check if conversation is complete
     conversation_complete = check_conversation_complete(conversation, "voice")
