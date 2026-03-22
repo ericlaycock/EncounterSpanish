@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import get_current_user, get_current_user_from_query
@@ -233,6 +233,49 @@ async def create_conversation(
 
 
 # Text chat endpoints removed - only voice chat is used now
+
+@router.post("/check-pronunciation")
+async def check_pronunciation(
+    audio: UploadFile = File(...),
+    expected_word: str = Form(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Lightweight pronunciation check: STT + string match. No LLM, no TTS."""
+    import logging
+    import re
+    import unicodedata
+    logger = logging.getLogger(__name__)
+
+    audio_bytes = await audio.read()
+    logger.info(f"[PronCheck] Checking pronunciation: expected='{expected_word}', audio={len(audio_bytes)} bytes")
+
+    transcript = await gateway_transcribe_audio(
+        audio_bytes=audio_bytes,
+        filename=audio.filename or "audio.webm",
+        prompt=f"The user is saying a Spanish word or phrase: {expected_word}. Transcribe exactly what they say.",
+        language=None,
+        request_id=str(current_user.id),
+        user_id=str(current_user.id),
+    )
+
+    # Normalize for comparison: lowercase, strip accents, remove punctuation
+    def normalize(s: str) -> str:
+        s = s.lower().strip()
+        s = unicodedata.normalize('NFD', s)
+        s = re.sub(r'[\u0300-\u036f]', '', s)  # Remove accent marks
+        s = s.replace('ñ', 'n')
+        s = re.sub(r'[.,!?;:\'"¿¡]', '', s)
+        s = re.sub(r'\s+', ' ', s).strip()
+        return s
+
+    norm_transcript = normalize(transcript)
+    norm_expected = normalize(expected_word)
+    is_correct = norm_expected in norm_transcript or norm_transcript in norm_expected
+
+    logger.info(f"[PronCheck] transcript='{transcript}' norm='{norm_transcript}' expected_norm='{norm_expected}' correct={is_correct}")
+
+    return {"transcript": transcript, "is_correct": is_correct}
+
 
 @router.post("/{conversation_id}/voice-turn", response_model=VoiceTurnResponse)
 async def voice_turn(
