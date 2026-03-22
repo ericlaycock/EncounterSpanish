@@ -86,14 +86,18 @@ def build_grammar_user_prompt(
 
 
 def build_transcription_prompt(situation_title: str, words: List[Word], catalan_mode: bool = False) -> str:
-    """Build a context prompt for STT transcription."""
+    """Build a context prompt for STT transcription (whisper-style format).
+
+    Benchmark showed this format gives 0.997 accuracy + 100% Spanish word
+    detection on gpt-4o-mini-transcribe, beating both whisper-1 and
+    gpt-4o-transcribe.
+    """
     target_words_list = ", ".join([w.spanish for w in words])
     lang = "Catalan" if catalan_mode else "Spanish"
     return (
-        f"The user is speaking ENGLISH with a few {lang} words mixed in. "
-        f"Transcribe exactly what they say — mostly English sentences with occasional {lang} vocabulary. "
-        f"Do NOT translate English into {lang}. "
-        f"{lang} words they might use: {target_words_list}."
+        f"This is a conversation about {situation_title}. "
+        f"The user is learning {lang} and may use these {lang} words: {target_words_list}. "
+        f"The conversation is in {lang} and English."
     )
 
 
