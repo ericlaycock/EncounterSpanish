@@ -106,10 +106,32 @@ async def create_conversation(
             if language_mode in ("spanish_text", "spanish_audio"):
                 language_mode = language_mode.replace("spanish_", "catalan_")
 
+        # Generate TTS for initial message
+        initial_audio_url = None
+        if initial_message:
+            try:
+                init_audio_filename = generate_audio_filename()
+                init_audio_path = get_audio_path(init_audio_filename)
+                tts_voice = SITUATION_VOICE_MAP.get(situation.animation_type, "alloy")
+                await gateway_synthesize_speech(
+                    text=initial_message,
+                    output_path=str(init_audio_path),
+                    voice=tts_voice,
+                    request_id=str(voice_conv.id),
+                    user_id=str(current_user.id),
+                    db=db,
+                )
+                r2_url = upload_to_r2(str(init_audio_path), init_audio_filename)
+                initial_audio_url = r2_url or get_audio_url(init_audio_filename)
+                logger.info(f"[Create Conv] Initial message TTS: {initial_audio_url}")
+            except Exception as e:
+                logger.error(f"[Create Conv] Initial message TTS failed: {e}")
+
         return CreateConversationResponse(
             conversation_id=voice_conv.id,
             words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english, notes=w.notes) for w in final_words],
             initial_message=initial_message,
+            initial_audio_url=initial_audio_url,
             language_mode=language_mode,
             vocab_level=vocab_level,
         )
@@ -143,10 +165,31 @@ async def create_conversation(
             if language_mode in ("spanish_text", "spanish_audio"):
                 language_mode = language_mode.replace("spanish_", "catalan_")
 
+        # Generate TTS for initial message
+        initial_audio_url = None
+        if initial_message:
+            try:
+                init_audio_filename = generate_audio_filename()
+                init_audio_path = get_audio_path(init_audio_filename)
+                tts_voice = SITUATION_VOICE_MAP.get(situation.animation_type, "alloy")
+                await gateway_synthesize_speech(
+                    text=initial_message,
+                    output_path=str(init_audio_path),
+                    voice=tts_voice,
+                    request_id=str(conversation.id),
+                    user_id=str(current_user.id),
+                    db=db,
+                )
+                r2_url = upload_to_r2(str(init_audio_path), init_audio_filename)
+                initial_audio_url = r2_url or get_audio_url(init_audio_filename)
+            except Exception as e:
+                logger.error(f"[Create Conv] Initial message TTS failed: {e}")
+
         return CreateConversationResponse(
             conversation_id=conversation.id,
             words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words],
             initial_message=initial_message,
+            initial_audio_url=initial_audio_url,
             language_mode=language_mode,
             vocab_level=vocab_level,
         )

@@ -121,6 +121,7 @@ class CreateConversationResponse(BaseModel):
     conversation_id: UUID
     words: List[WordSchema]  # Return the words used in this conversation
     initial_message: str  # Custom initial message for this encounter
+    initial_audio_url: Optional[str] = None  # TTS audio for the initial message
     language_mode: str = "english"  # "english", "spanish_text", or "spanish_audio"
     vocab_level: int = 0
 
