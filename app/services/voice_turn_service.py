@@ -86,20 +86,14 @@ def build_grammar_user_prompt(
 
 
 def build_transcription_prompt(situation_title: str, words: List[Word], catalan_mode: bool = False) -> str:
-    """Build a context prompt to help Whisper with vocabulary."""
-    target_words_list = ", ".join([f"{w.spanish} ({w.english})" for w in words])
-    if catalan_mode:
-        return (
-            f"This is a conversation about {situation_title}.\n"
-            f"The user is learning Catalan and may use these Catalan words: {target_words_list}.\n"
-            f"The conversation is in Catalan and English. Focus on accurate Catalan transcription.\n"
-            f"Common Catalan words that may appear: mida, talla, número, gran, petit, mitjà."
-        )
+    """Build a context prompt for STT transcription."""
+    target_words_list = ", ".join([w.spanish for w in words])
+    lang = "Catalan" if catalan_mode else "Spanish"
     return (
-        f"This is a conversation about {situation_title}.\n"
-        f"The user is learning Spanish and may use these Spanish words: {target_words_list}.\n"
-        f"The conversation is in Spanish and English. Focus on accurate Spanish transcription.\n"
-        f"Common Spanish words that may appear: tamaño, talla, número, grande, pequeño, mediano."
+        f"The user is speaking ENGLISH with a few {lang} words mixed in. "
+        f"Transcribe exactly what they say — mostly English sentences with occasional {lang} vocabulary. "
+        f"Do NOT translate English into {lang}. "
+        f"{lang} words they might use: {target_words_list}."
     )
 
 
