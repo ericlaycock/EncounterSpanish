@@ -11,7 +11,7 @@ from app.core.logger import log_event
 from app.config import settings
 
 PROVIDER = "openai"
-STT_MODEL = "whisper-1"
+STT_MODEL = "gpt-4o-mini-transcribe"
 TTS_MODEL = "gpt-4o-mini-tts"
 
 # Lazy initialization
