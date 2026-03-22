@@ -275,157 +275,123 @@ async def voice_turn(
             detail="This endpoint is for voice mode only"
         )
     
-    # Step 1: STT transcription with context prompt
+    # Read audio + load DB context
+    import asyncio
     read_start = time.time()
     audio_bytes = await audio.read()
     read_time = time.time() - read_start
     logger.info(f"[Voice Turn] Audio read: {read_time:.2f}s, size: {len(audio_bytes)} bytes")
-    
-    # Get words and situation for prompt context
+
     db_start = time.time()
     words = get_words_by_ids(db, conversation.target_word_ids)
     situation = db.query(Situation).filter(Situation.id == conversation.situation_id).first()
     db_time = time.time() - db_start
     logger.info(f"[Voice Turn] DB queries: {db_time:.2f}s")
 
-    # Catalan mode: swap spanish → catalan for word detection + prompts
     catalan_mode = current_user.catalan_mode
     if catalan_mode:
         words = apply_catalan_mode(words, db)
 
+    # --- Run STT (for word detection) and V2V (for response) in PARALLEL ---
+    parallel_start = time.time()
+
+    # STT task: Whisper transcription for deterministic word detection
     transcription_prompt = build_transcription_prompt(
         situation.title if situation else "a situation", words,
         catalan_mode=catalan_mode,
     )
-
-    stt_start = time.time()
     stt_language = "ca" if catalan_mode else "es"
-    user_transcript = await gateway_transcribe_audio(
-        audio_bytes=audio_bytes,
-        filename=audio.filename or "audio.mp3",
-        prompt=transcription_prompt,
-        language=stt_language,
-        request_id=request_id,
-        user_id=str(current_user.id),
-        db=db,
-        learning_phase=learning_phase
+
+    async def run_stt():
+        return await gateway_transcribe_audio(
+            audio_bytes=audio_bytes,
+            filename=audio.filename or "audio.webm",
+            prompt=transcription_prompt,
+            language=stt_language,
+            request_id=request_id,
+            user_id=str(current_user.id),
+            db=db,
+            learning_phase=learning_phase,
+        )
+
+    # V2V task: gpt-4o-audio-preview (audio in → audio + text out)
+    from app.services.voice_turn_service import V2V_SITUATION_PROMPTS, build_v2v_context_prompt
+    from app.services.openai_media_gateway import voice_to_voice as gateway_voice_to_voice
+
+    v2v_cfg = V2V_SITUATION_PROMPTS.get(situation.animation_type, {}) if situation else {}
+    v2v_system = v2v_cfg.get("system", "You are a helpful assistant.")
+    v2v_voice = v2v_cfg.get("voice", "nova")
+    v2v_context = build_v2v_context_prompt(
+        situation.title if situation else "a situation",
+        words,
+        conversation.used_spoken_word_ids or [],
+        catalan_mode=catalan_mode,
     )
-    stt_time = time.time() - stt_start
-    logger.info(f"[Voice Turn] STT transcription: {stt_time:.2f}s, transcript: '{user_transcript}'")
-    
-    # Step 2: Detect word_ids
+
+    # Determine audio format from filename
+    audio_ext = (audio.filename or "audio.webm").rsplit(".", 1)[-1].lower()
+    audio_format = audio_ext if audio_ext in ("webm", "mp3", "wav", "ogg", "flac") else "webm"
+
+    async def run_v2v():
+        return await gateway_voice_to_voice(
+            audio_bytes=audio_bytes,
+            audio_format=audio_format,
+            system_prompt=v2v_system,
+            context_prompt=v2v_context,
+            voice=v2v_voice,
+            request_id=request_id,
+            user_id=str(current_user.id),
+        )
+
+    # Run both in parallel
+    stt_result, v2v_result = await asyncio.gather(run_stt(), run_v2v())
+    user_transcript = stt_result
+    response_audio_bytes, assistant_text = v2v_result
+    parallel_time = time.time() - parallel_start
+    logger.info(f"[Voice Turn] Parallel STT+V2V: {parallel_time:.2f}s, transcript: '{user_transcript}', assistant: '{assistant_text[:50]}...'")
+
+    # Word detection on STT transcript
     detect_start = time.time()
     detected_word_ids = detect_words_in_text(user_transcript, words)
     detect_time = time.time() - detect_start
     logger.info(f"[Voice Turn] Word detection: {detect_time:.2f}s, detected: {detected_word_ids}")
-    
-    # Step 3: Update used_spoken_word_ids
+
+    # Update conversation state
     update_start = time.time()
     current_used = set(conversation.used_spoken_word_ids or [])
     current_used.update(detected_word_ids)
     conversation.used_spoken_word_ids = list(current_used)
-    
-    # Step 4: Update user_words.spoken_correct_count
     update_user_word_stats(db, str(current_user.id), detected_word_ids, "voice")
     update_time = time.time() - update_start
-    logger.info(f"[Voice Turn] DB updates: {update_time:.2f}s")
-    
-    # Step 5: Generate assistant_text via OpenAI
-    # Compute language mode for prompt selection
-    vocab_level = get_vocab_level(db, current_user.id)
-    language_mode = get_language_mode(situation.encounter_number, vocab_level)
 
-    # Catalan mode: adjust language_mode for prompt selection
-    if catalan_mode and language_mode in ("spanish_text", "spanish_audio"):
-        language_mode = language_mode.replace("spanish_", "catalan_")
-
-    grammar_config = get_grammar_config(conversation.situation_id)
-    if grammar_config:
-        system_prompt = build_grammar_system_prompt(conversation.situation_id)
-        user_prompt = build_grammar_user_prompt(
-            situation.title,
-            conversation.used_spoken_word_ids or [],
-            user_transcript,
-            grammar_config,
-        )
-    else:
-        system_prompt = get_conversation_system_prompt(language_mode, catalan_mode=catalan_mode)
-        user_prompt = build_conversation_prompt(
-            situation.title,
-            words,
-            conversation.used_spoken_word_ids or [],
-            user_transcript,
-            catalan_mode=catalan_mode,
-        )
-    
-    # Use LLM gateway
-    gen_start = time.time()
-    context = ConversationContext(
-        request_id=request_id,
-        user_id=str(current_user.id),
-        system_prompt=system_prompt,
-        user_prompt=user_prompt,
-        agent_id="conversation_agent",
-        prompt_version="v1",
-        return_json=True,
-        learning_phase=learning_phase
-    )
-    llm_result = await generate_conversation(context, db)
-    gen_time = time.time() - gen_start
-    
-    # Extract response (gateway returns dict with 'content')
-    assistant_response = llm_result["content"] if isinstance(llm_result["content"], dict) else {"assistant_text": "", "end_conversation": False}
-    assistant_text = assistant_response.get("assistant_text", "")
-    end_conversation = assistant_response.get("end_conversation", False)
-    logger.info(f"[Voice Turn] Text generation: {gen_time:.2f}s, text: '{assistant_text[:50]}...'")
-    
-    # Step 6: TTS generate audio file
-    tts_start = time.time()
+    # Save V2V audio to R2
+    upload_start = time.time()
     audio_filename = generate_audio_filename()
     audio_path = get_audio_path(audio_filename)
-    tts_cfg = SITUATION_VOICE_CONFIG.get(situation.animation_type, {}) if situation else {}
-    tts_voice = tts_cfg.get("voice", "alloy")
-    tts_instructions = tts_cfg.get("instructions")
-    await gateway_synthesize_speech(
-        text=assistant_text,
-        output_path=str(audio_path),
-        voice=tts_voice,
-        instructions=tts_instructions,
-        request_id=request_id,
-        user_id=str(current_user.id),
-        db=db,
-        learning_phase=learning_phase
-    )
-    # Upload to R2 (falls back to local URL if R2 not configured)
+    with open(str(audio_path), "wb") as f:
+        f.write(response_audio_bytes)
     r2_url = upload_to_r2(str(audio_path), audio_filename)
     assistant_audio_url = r2_url or get_audio_url(audio_filename)
-    tts_time = time.time() - tts_start
-    if r2_url:
-        logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url} (R2)")
-    else:
-        logger.warning(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url} (LOCAL FALLBACK — R2 upload failed)")
-    
-    # Check if conversation is complete
+    upload_time = time.time() - upload_start
+    logger.info(f"[Voice Turn] Audio upload: {upload_time:.2f}s, url: {assistant_audio_url}")
+
+    # Check completion
     conversation_complete = check_conversation_complete(conversation, "voice")
     if conversation_complete:
         conversation.status = "complete"
-    
-    commit_start = time.time()
+
     db.commit()
-    commit_time = time.time() - commit_start
-    logger.info(f"[Voice Turn] DB commit: {commit_time:.2f}s")
-    
-    # Get missing words
+
     missing_word_ids = get_missing_word_ids(conversation, "voice")
-    
+
     total_time = time.time() - start_time
-    logger.info(f"[Voice Turn] Total processing time: {total_time:.2f}s (read: {read_time:.2f}s, db_queries: {db_time:.2f}s, stt: {stt_time:.2f}s, detect: {detect_time:.2f}s, update: {update_time:.2f}s, gen: {gen_time:.2f}s, tts: {tts_time:.2f}s, commit: {commit_time:.2f}s)")
-    
+    logger.info(f"[Voice Turn] Total: {total_time:.2f}s (read: {read_time:.2f}s, db: {db_time:.2f}s, parallel: {parallel_time:.2f}s, detect: {detect_time:.2f}s, update: {update_time:.2f}s, upload: {upload_time:.2f}s)")
+
     return VoiceTurnResponse(
         user_transcript=user_transcript,
         detected_word_ids=detected_word_ids,
         missing_word_ids=missing_word_ids,
         assistant_text=assistant_text,
         assistant_audio_url=assistant_audio_url,
-        conversation_complete=conversation_complete
+        conversation_complete=conversation_complete,
     )

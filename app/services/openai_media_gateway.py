@@ -1,9 +1,11 @@
 """OpenAI Media Gateway for STT and TTS with logging"""
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
+import base64
 import hashlib
 import time
 import uuid
 import io
+import logging
 from openai import OpenAI
 from sqlalchemy.orm import Session
 from app.models import STTRequest, TTSRequest
@@ -379,7 +381,54 @@ async def synthesize_speech(
             user_id=str(user_id) if user_id else None,
             extra=extra_tts_failure
         )
-        
+
         # Re-raise exception
         raise
 
+
+V2V_MODEL = "gpt-4o-audio-preview"
+_v2v_logger = logging.getLogger(__name__)
+
+
+async def voice_to_voice(
+    audio_bytes: bytes,
+    audio_format: str,
+    system_prompt: str,
+    context_prompt: str,
+    voice: str = "nova",
+    request_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+) -> Tuple[bytes, str]:
+    """Voice-to-voice: send user audio + context, get back (audio_bytes, transcript).
+
+    Uses gpt-4o-audio-preview Chat Completions with audio modality.
+    The model hears the user audio, reads the context, and responds with
+    both spoken audio and a text transcript of its response.
+    """
+    start_time = time.time()
+    _v2v_logger.info(f"[V2V] Starting voice-to-voice: audio={len(audio_bytes)} bytes, format={audio_format}, voice={voice}")
+
+    client = get_client()
+    audio_b64 = base64.b64encode(audio_bytes).decode()
+
+    response = client.chat.completions.create(
+        model=V2V_MODEL,
+        modalities=["text", "audio"],
+        audio={"voice": voice, "format": "mp3"},
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": [
+                {"type": "input_audio", "input_audio": {"data": audio_b64, "format": audio_format}},
+                {"type": "text", "text": context_prompt},
+            ]},
+        ],
+    )
+
+    latency_ms = int((time.time() - start_time) * 1000)
+
+    audio_data = base64.b64decode(response.choices[0].message.audio.data)
+    transcript = response.choices[0].message.audio.transcript
+
+    _v2v_logger.info(f"[V2V] Complete: {latency_ms}ms, audio_out={len(audio_data)} bytes, transcript={transcript[:80]}...")
+
+    return audio_data, transcript
