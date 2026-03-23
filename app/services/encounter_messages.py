@@ -83,18 +83,25 @@ ENCOUNTER_INITIAL_MESSAGES = {
     "Making Small Talk": "How long have you been living here?",
 }
 
-def get_initial_message_for_encounter(encounter_title: str) -> str:
+def get_initial_message_for_encounter(situation_id: str, encounter_title: str = "") -> str:
     """
-    Get a custom initial message for an encounter based on its title.
-    Falls back to the category-level message if no exact match,
-    then to a generic message.
+    Get a custom initial message for an encounter.
+    Priority: per-encounter generated message → title match → category fallback → generic.
     """
-    # Try to match the encounter title to our messages
+    # 1. Per-encounter generated message (situation_id lookup)
+    try:
+        from app.services.encounter_messages_generated import ENCOUNTER_MESSAGES
+        if situation_id in ENCOUNTER_MESSAGES:
+            return ENCOUNTER_MESSAGES[situation_id]
+    except ImportError:
+        pass
+
+    # 2. Legacy title-based match
     for key, message in ENCOUNTER_INITIAL_MESSAGES.items():
         if key in encounter_title:
             return message
 
-    # Category-level fallback messages
+    # 3. Category-level fallback
     CATEGORY_FALLBACKS = {
         "bank": "Good morning! How can I help you with your banking today?",
         "airport": "Welcome! Do you need help with check-in or your flight?",
