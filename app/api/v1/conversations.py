@@ -251,7 +251,7 @@ async def check_pronunciation(
 
     transcript = await gateway_transcribe_audio(
         audio_bytes=audio_bytes,
-        filename=audio.filename or "audio.webm",
+        filename=audio.filename or "audio.mp3",
         prompt=f"The user is saying a Spanish word or phrase: {expected_word}. Transcribe exactly what they say.",
         language=None,
         request_id=str(current_user.id),

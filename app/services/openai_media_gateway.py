@@ -114,7 +114,9 @@ async def transcribe_audio(
         # Call OpenAI STT
         client = get_client()
         audio_file = io.BytesIO(audio_bytes)
-        audio_file.name = filename
+        # gpt-4o-mini-transcribe rejects webm files — use .mp3 extension hint
+        safe_filename = filename.replace(".webm", ".mp3") if filename.endswith(".webm") else filename
+        audio_file.name = safe_filename
         
         params = {
             "model": STT_MODEL,
