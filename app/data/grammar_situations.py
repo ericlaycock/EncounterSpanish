@@ -208,7 +208,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "All pronouns for hablar, comer, vivir",
@@ -302,7 +302,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "All pronouns for all verbs",
@@ -420,7 +420,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "2 random pronouns per verb",
@@ -535,7 +535,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "'yo' + 1 random pronoun per verb",
@@ -590,7 +590,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "All pronouns for all verbs",
@@ -636,7 +636,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "All pronouns for all verbs",
@@ -682,7 +682,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "All pronouns for all verbs",
@@ -776,7 +776,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "All pronouns for hablar, comer, salir",
@@ -906,7 +906,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "All pronouns for all verbs",
@@ -1024,7 +1024,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "1 random pronoun per verb",
@@ -1103,7 +1103,7 @@ GRAMMAR_SITUATIONS = {
                 }
         ]
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "gustar_singular"},
         "phase_2_config": {
             "description": "5 pronoun+gusta+noun combos",
@@ -1182,7 +1182,7 @@ GRAMMAR_SITUATIONS = {
                 }
         ]
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "gustar_plural"},
         "phase_2_config": {
             "description": "5 pronoun+gustan+noun combos",
@@ -1261,7 +1261,7 @@ GRAMMAR_SITUATIONS = {
                 }
         ]
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": False},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": False},
         "phase_1c_config": {"total_items": 5, "mode": "gustar_prefix"},
         "phase_2_config": {
             "description": "1 per pronoun type (10 total)",
@@ -1340,7 +1340,7 @@ GRAMMAR_SITUATIONS = {
                 }
         }
 },
-        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": True, "2": True, "3": True},
+        "phases": {"0a": True, "0b": True, "1a": False, "1b": False, "1c": False, "2": True, "3": True},
         "phase_1c_config": {"total_items": 5, "mode": "random_pronoun_verb"},
         "phase_2_config": {
             "description": "All pronouns for 2 verbs",
