@@ -539,11 +539,7 @@ async def get_grammar_config_endpoint(
     if not config:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not a grammar situation")
 
-    drill_config = None
-    if config["drill_type"] == "article_matching" and "drill_config" in config:
-        drill_config = config["drill_config"]
-    elif config["drill_type"] in ("gustar", "gustar_prefix"):
-        drill_config = config.get("drill_config")
+    drill_config = config.get("drill_config")
 
     return GrammarConfigResponse(
         situation_type=situation.situation_type,
