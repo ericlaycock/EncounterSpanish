@@ -87,11 +87,11 @@ def build_transcription_prompt(situation_title: str, words: List[Word], catalan_
     detection on gpt-4o-mini-transcribe, beating both whisper-1 and
     gpt-4o-transcribe.
     """
-    target_words_list = ", ".join([w.spanish for w in words])
+    word_phrase_list = ", ".join([w.spanish for w in words])
     lang = "Catalan" if catalan_mode else "Spanish"
     return (
         f"This is a conversation about {situation_title}. "
-        f"The user is learning {lang} and may use these {lang} words: {target_words_list}. "
+        f"The user is learning {lang} and may use these {lang} words and phrases: {word_phrase_list}. "
         f"The conversation is in {lang} and English."
     )
 
