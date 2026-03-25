@@ -179,6 +179,33 @@ async def get_grammar_gates(
     }
 
 
+@router.get("/grammar-completed")
+async def get_completed_grammar(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all grammar situations with their completion status."""
+    completed_situations = {
+        us.situation_id
+        for us in db.query(UserSituation).filter(
+            UserSituation.user_id == current_user.id,
+            UserSituation.completed_at.isnot(None)
+        ).all()
+    }
+
+    result = []
+    for sid in get_all_grammar_situation_ids():
+        cfg = GRAMMAR_SITUATIONS[sid]
+        result.append({
+            "situation_id": sid,
+            "title": cfg["title"],
+            "vocab_level_required": cfg["vocab_level"],
+            "completed": sid in completed_situations,
+        })
+
+    return {"grammar_units": result}
+
+
 @router.get("", response_model=list[SituationListItem])
 async def list_situations(
     current_user: User = Depends(get_current_user),

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from pydantic import BaseModel
 from typing import List
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from app.database import get_db
 from app.auth import get_current_user
 from app.models import User, Situation, UserWord, UserSituation, Word
@@ -14,19 +14,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Quiz score → target vocab level mapping
-VOCAB_SCORE_MAP = {
-    "V1": 0,
-    "V151": 30,
-    "V2501": 300,
-}
-
-GRAMMAR_SCORE_MAP = {
-    "G1": 0,
-    "G101": 99,
-    "G701": 200,
-    "G2001": 235,
-}
+def _parse_score_level(score: str | None) -> int:
+    """Extract numeric level from score ID like 'V151' or 'G701'."""
+    if not score:
+        return 0
+    digits = ''.join(c for c in score if c.isdigit())
+    return int(digits) if digits else 0
 
 
 class SaveOnboardingSelectionsRequest(BaseModel):
@@ -58,7 +51,6 @@ def _seed_hf_words(db: Session, user_id, count: int) -> int:
     if not hf_words:
         return 0
 
-    next_refresh = datetime.now(timezone.utc) + timedelta(days=7)
     for word in hf_words:
         stmt = insert(UserWord).values(
             user_id=user_id,
@@ -66,9 +58,9 @@ def _seed_hf_words(db: Session, user_id, count: int) -> int:
             seen_count=1,
             typed_correct_count=1,
             spoken_correct_count=2,
-            mastery_level=2,
-            next_refresh_at=next_refresh,
-            status="learning",
+            mastery_level=4,
+            next_refresh_at=None,
+            status="mastered",
         ).on_conflict_do_nothing(index_elements=["user_id", "word_id"])
         db.execute(stmt)
 
@@ -147,8 +139,8 @@ async def save_onboarding_selections(
     current_user.onboarding_completed = True
 
     # Determine starting vocab level from quiz scores
-    vocab_target = VOCAB_SCORE_MAP.get(request.vocab_score or "", 0)
-    grammar_implied = GRAMMAR_SCORE_MAP.get(request.grammar_score or "", 0)
+    vocab_target = _parse_score_level(request.vocab_score)
+    grammar_implied = _parse_score_level(request.grammar_score)
     starting_vl = max(vocab_target, grammar_implied)
 
     seeded_words = 0
