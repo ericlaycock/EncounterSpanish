@@ -11,7 +11,7 @@ from app.core.logger import log_event
 from app.config import settings
 import os
 
-MODEL = "gpt-4o-mini"  # Updated model name
+MODEL = "gpt-4.1-mini"
 PROVIDER = "openai"
 AGENT_ID = "conversation_agent"
 
@@ -39,28 +39,22 @@ class ConversationContext:
     max_tokens: Optional[int] = None
     return_json: bool = False
     learning_phase: Optional[str] = None
+    messages: Optional[List[Dict[str, str]]] = None  # Full message history (overrides system_prompt + user_prompt)
 
 
-def load_prompt(agent_id: str, prompt_version: str) -> str:
-    """Load prompt from prompts.json by agent_id and version"""
+def load_prompt(agent_id: str, prompt_version: str = "v2") -> str:
+    """Load prompt template from prompts.json by agent_id."""
     import json
     from pathlib import Path
-    
+
     prompts_path = Path(__file__).parent.parent / "prompts" / "prompts.json"
     with open(prompts_path, "r") as f:
         prompts = json.load(f)
-    
+
     if agent_id not in prompts:
         raise ValueError(f"Agent ID '{agent_id}' not found in prompts.json")
-    
-    agent_prompt = prompts[agent_id]
-    if agent_prompt.get("prompt_version") != prompt_version:
-        raise ValueError(
-            f"Prompt version mismatch: requested '{prompt_version}', "
-            f"found '{agent_prompt.get('prompt_version')}'"
-        )
-    
-    return agent_prompt["content"]
+
+    return prompts[agent_id]["content"]
 
 
 async def generate_conversation(
@@ -76,11 +70,14 @@ async def generate_conversation(
     start_time = time.time()
     llm_request_id = uuid.uuid4()
     
-    # Build messages
-    messages = [
-        {"role": "system", "content": context.system_prompt},
-        {"role": "user", "content": context.user_prompt}
-    ]
+    # Build messages — use full history if provided, otherwise system+user pair
+    if context.messages:
+        messages = context.messages
+    else:
+        messages = [
+            {"role": "system", "content": context.system_prompt},
+            {"role": "user", "content": context.user_prompt}
+        ]
     
     # Convert user_id to UUID if string
     user_id_uuid = None

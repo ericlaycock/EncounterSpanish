@@ -133,6 +133,7 @@ class CreateConversationResponse(BaseModel):
     initial_audio_url: Optional[str] = None  # TTS audio for the initial message
     language_mode: str = "english"  # "english", "spanish_text", or "spanish_audio"
     vocab_level: int = 0
+    system_prompt: Optional[str] = None  # System prompt for multi-turn message history
 
 
 class MessageRequest(BaseModel):

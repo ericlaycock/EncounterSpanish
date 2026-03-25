@@ -1,3 +1,5 @@
+import json as json_module
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -23,7 +25,7 @@ from app.services.conversation_service import (
 )
 from app.services.encounter_messages import get_initial_message_for_encounter
 from app.api.v1.situations import get_vocab_level
-from app.services.voice_turn_service import build_transcription_prompt, build_conversation_prompt, build_grammar_system_prompt, build_grammar_user_prompt, get_language_mode, get_conversation_system_prompt
+from app.services.voice_turn_service import build_transcription_prompt, build_conversation_prompt, build_grammar_system_prompt, build_grammar_user_prompt, get_language_mode, get_conversation_system_prompt, build_system_prompt
 from app.data.grammar_situations import get_grammar_config
 from app.services.catalan_service import apply_catalan_mode
 from app.utils.audio import generate_audio_filename, get_audio_path, get_audio_url, upload_to_r2
@@ -172,6 +174,10 @@ async def create_conversation(
             except Exception as e:
                 logger.error(f"[Create Conv] Initial message TTS failed: {e}")
 
+        system_prompt = build_system_prompt(
+            situation.animation_type, situation.id, language_mode,
+            catalan_mode=current_user.catalan_mode,
+        )
         return CreateConversationResponse(
             conversation_id=voice_conv.id,
             words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english, notes=w.notes) for w in final_words],
@@ -179,6 +185,7 @@ async def create_conversation(
             initial_audio_url=initial_audio_url,
             language_mode=language_mode,
             vocab_level=vocab_level,
+            system_prompt=system_prompt,
         )
     else:
         # No existing conversation - this shouldn't happen if startSituation was called first
@@ -233,6 +240,10 @@ async def create_conversation(
             except Exception as e:
                 logger.error(f"[Create Conv] Initial message TTS failed: {e}")
 
+        system_prompt = build_system_prompt(
+            situation.animation_type, situation.id, language_mode,
+            catalan_mode=current_user.catalan_mode,
+        )
         return CreateConversationResponse(
             conversation_id=conversation.id,
             words=[WordSchema(id=w.id, spanish=w.spanish, english=w.english) for w in final_words],
@@ -240,6 +251,7 @@ async def create_conversation(
             initial_audio_url=initial_audio_url,
             language_mode=language_mode,
             vocab_level=vocab_level,
+            system_prompt=system_prompt,
         )
 
 
@@ -293,6 +305,7 @@ async def voice_turn(
     conversation_id: str,
     request: Request,
     audio: UploadFile = File(...),
+    messages_json: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -384,6 +397,14 @@ async def voice_turn(
     logger.info(f"[Voice Turn] DB updates: {update_time:.2f}s")
     
     # Step 5: Generate assistant_text via OpenAI
+    # Parse frontend messages if provided (multi-turn conversation history)
+    frontend_messages = None
+    if messages_json:
+        try:
+            frontend_messages = json_module.loads(messages_json)
+        except (json_module.JSONDecodeError, TypeError):
+            logger.warning("[Voice Turn] Failed to parse messages_json, falling back to single-turn")
+
     # Compute language mode for prompt selection
     vocab_level = get_vocab_level(db, current_user.id)
     language_mode = get_language_mode(situation.encounter_number, vocab_level)
@@ -392,44 +413,69 @@ async def voice_turn(
     if catalan_mode and language_mode in ("spanish_text", "spanish_audio"):
         language_mode = language_mode.replace("spanish_", "catalan_")
 
-    grammar_config = get_grammar_config(conversation.situation_id)
-    if grammar_config:
-        system_prompt = build_grammar_system_prompt(conversation.situation_id)
-        user_prompt = build_grammar_user_prompt(
-            situation.title,
-            conversation.used_spoken_word_ids or [],
-            user_transcript,
-            grammar_config,
-        )
-    else:
-        system_prompt = get_conversation_system_prompt(language_mode, catalan_mode=catalan_mode)
-        user_prompt = build_conversation_prompt(
-            situation.title,
-            words,
-            conversation.used_spoken_word_ids or [],
-            user_transcript,
-            catalan_mode=catalan_mode,
-        )
-    
-    # Use LLM gateway
     gen_start = time.time()
-    context = ConversationContext(
-        request_id=request_id,
-        user_id=str(current_user.id),
-        system_prompt=system_prompt,
-        user_prompt=user_prompt,
-        agent_id="conversation_agent",
-        prompt_version="v1",
-        return_json=True,
-        learning_phase=learning_phase
-    )
-    llm_result = await generate_conversation(context, db)
+
+    if frontend_messages:
+        # Multi-turn: use the full message history from frontend
+        # Append the user's transcript as the latest user message
+        llm_messages = list(frontend_messages)
+        llm_messages.append({"role": "user", "content": user_transcript})
+
+        context = ConversationContext(
+            request_id=request_id,
+            user_id=str(current_user.id),
+            system_prompt="",  # Already in messages[0]
+            user_prompt="",    # Already in messages
+            agent_id="conversation_agent",
+            prompt_version="v2",
+            return_json=False,
+            learning_phase=learning_phase,
+            messages=llm_messages,
+        )
+        llm_result = await generate_conversation(context, db)
+        # Plain text response — no JSON parsing needed
+        raw_content = llm_result.get("content", "")
+        assistant_text = raw_content if isinstance(raw_content, str) else raw_content.get("assistant_text", str(raw_content))
+    else:
+        # Legacy single-turn fallback
+        grammar_config = get_grammar_config(conversation.situation_id)
+        if grammar_config:
+            system_prompt = build_grammar_system_prompt(conversation.situation_id, catalan_mode=catalan_mode)
+            user_prompt = build_grammar_user_prompt(
+                situation.title,
+                conversation.used_spoken_word_ids or [],
+                user_transcript,
+                grammar_config,
+            )
+        else:
+            system_prompt = get_conversation_system_prompt(
+                language_mode, catalan_mode=catalan_mode,
+                animation_type=situation.animation_type if situation else "",
+                situation_id=conversation.situation_id,
+            )
+            user_prompt = build_conversation_prompt(
+                situation.title,
+                words,
+                conversation.used_spoken_word_ids or [],
+                user_transcript,
+                catalan_mode=catalan_mode,
+            )
+
+        context = ConversationContext(
+            request_id=request_id,
+            user_id=str(current_user.id),
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            agent_id="conversation_agent",
+            prompt_version="v2",
+            return_json=False,
+            learning_phase=learning_phase
+        )
+        llm_result = await generate_conversation(context, db)
+        raw_content = llm_result.get("content", "")
+        assistant_text = raw_content if isinstance(raw_content, str) else raw_content.get("assistant_text", str(raw_content))
+
     gen_time = time.time() - gen_start
-    
-    # Extract response (gateway returns dict with 'content')
-    assistant_response = llm_result["content"] if isinstance(llm_result["content"], dict) else {"assistant_text": "", "end_conversation": False}
-    assistant_text = assistant_response.get("assistant_text", "")
-    end_conversation = assistant_response.get("end_conversation", False)
     logger.info(f"[Voice Turn] Text generation: {gen_time:.2f}s, text: '{assistant_text[:50]}...'")
     
     # Step 6: TTS generate audio file
