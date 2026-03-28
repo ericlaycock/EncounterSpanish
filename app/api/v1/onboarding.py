@@ -200,6 +200,10 @@ async def get_available_categories(
             "name": "Clothing Shopping",
             "description": "Finding sizes, trying on clothes"
         },
+        "core": {
+            "name": "Core",
+            "description": "Essential everyday phrases and expressions"
+        },
         "internet": {
             "name": "Internet",
             "description": "Setting up WiFi, phone plans"

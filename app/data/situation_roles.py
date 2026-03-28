@@ -60,6 +60,11 @@ SITUATION_ROLES = {
         "user_role": "customer setting up WiFi",
         "situation_description": "the customer needs help setting up their home internet. You are the technician on site.",
     },
+    "core": {
+        "ai_role": "friendly local",
+        "user_role": "expat practicing everyday Spanish",
+        "situation_description": "the expat is practicing essential everyday phrases in a casual conversation. You are a friendly local helping them get comfortable with common expressions.",
+    },
 }
 
 # ── Grammar situation → main scene mapping ───────────────────────────────────

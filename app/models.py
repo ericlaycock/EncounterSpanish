@@ -150,4 +150,18 @@ class Conversation(Base):
     situation = relationship("Situation", back_populates="conversations")
 
 
+class DailyEncounterLog(Base):
+    __tablename__ = "daily_encounter_logs"
+    __table_args__ = (
+        {"comment": "Append-only log tracking each encounter start (including restarts) for daily limits"},
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    situation_id = Column(String, ForeignKey("situations.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    situation = relationship("Situation")
+
 

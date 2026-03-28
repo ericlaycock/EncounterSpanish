@@ -16,6 +16,7 @@ ANIMATION_NAMES = {
     "airport": "Airport",
     "banking": "Banking",
     "clothing": "Clothing Shopping",
+    "core": "Core",
     "internet": "Internet",
     "small_talk": "Small Talk",
     "contractor": "Home Renovation",
@@ -620,6 +621,62 @@ _SUB_SITUATIONS = {
             ],
         },
     ],
+    "core": [
+        {
+            "title": "Core",
+            "goal": "Practice essential everyday Spanish phrases and expressions",
+            "word_prefix": "core",
+            "words": [
+                ("quiero dormir", "I want to sleep", ""), ("quiero comer", "I want to eat", ""), ("quiero irme", "I want to leave", ""),  # Encounter 1
+                ("necesito comer", "I need to eat", ""), ("necesito dormir", "I need to sleep", ""), ("necesito salir", "I need to leave", ""),  # Encounter 2
+                ("puedo entrar", "I can enter", ""), ("puedo pasar", "I can come in", ""), ("puedo sentarme", "I can sit down", ""),  # Encounter 3
+                ("no puedo encontrarlo", "I can't find it", ""), ("no puedo hacerlo", "I can't do it", ""), ("no puedo verlo", "I can't see it", ""),  # Encounter 4
+                ("voy a salir", "I'm going to leave", ""), ("voy a entrar", "I'm going to enter", ""), ("voy a volver", "I'm going to return", ""),  # Encounter 5
+                ("estoy buscando", "I am looking", ""), ("estoy esperando", "I am waiting", ""), ("estoy trabajando", "I am working", ""),  # Encounter 6
+                ("tengo que trabajar", "I have to work", ""), ("tengo que salir", "I have to leave", ""), ("tengo que pagar", "I have to pay", ""),  # Encounter 7
+                ("no tengo que pagar", "I don't have to pay", ""), ("no tengo que ir", "I don't have to go", ""), ("no tengo que hacerlo", "I don't have to do it", ""),  # Encounter 8
+                ("debo llamar", "I should call", ""), ("debo ir", "I should go", ""), ("debo pagar", "I should pay", ""),  # Encounter 9
+                ("trato de entender", "I try to understand", ""), ("trato de encontrarlo", "I try to find it", ""), ("trato de hacerlo", "I try to do it", ""),  # Encounter 10
+                ("puedes ayudarme", "can you help me", ""), ("puedes llamarme", "can you call me", ""), ("puedes esperarme", "can you wait for me", ""),  # Encounter 11
+                ("puedes darme agua", "can you give me water", ""), ("puedes darme eso", "can you give me that", ""), ("puedes darme tiempo", "can you give me time", ""),  # Encounter 12
+                ("me puedes ayudar con esto", "can you help me with this", ""), ("me puedes ayudar con eso", "can you help me with that", ""), ("me puedes ayudar con el problema", "can you help me with the problem", ""),  # Encounter 13
+                ("necesito que vengas", "I need you to come", ""), ("necesito que me ayudes", "I need you to help me", ""), ("necesito que esperes", "I need you to wait", ""),  # Encounter 14
+                ("dime la verdad", "tell me the truth", ""), ("dime qué pasa", "tell me what's happening", ""), ("dime dónde está", "tell me where it is", ""),  # Encounter 15
+                ("explícame cómo funciona", "explain how it works to me", ""), ("explícame qué pasó", "explain what happened to me", ""), ("explícame por qué", "explain why to me", ""),  # Encounter 16
+                ("muéstrame dónde está", "show me where it is", ""), ("muéstrame cómo funciona", "show me how it works", ""), ("muéstrame el camino", "show me the way", ""),  # Encounter 17
+                ("déjame ver", "let me see", ""), ("déjame hacerlo", "let me do it", ""), ("déjame entrar", "let me enter", ""),  # Encounter 18
+                ("ayúdame a encontrarlo", "help me find it", ""), ("ayúdame a hacerlo", "help me do it", ""), ("ayúdame a entender", "help me understand", ""),  # Encounter 19
+                ("no me digas eso", "don't tell me that", ""), ("no me digas nada", "don't tell me anything", ""), ("no me digas mentiras", "don't tell me lies", ""),  # Encounter 20
+                ("estoy en el hotel", "I am at the hotel", ""), ("estoy en casa", "I am at home", ""), ("estoy en la calle", "I am on the street", ""),  # Encounter 21
+                ("voy al baño", "I'm going to the bathroom", ""), ("voy al hotel", "I'm going to the hotel", ""), ("voy al trabajo", "I'm going to work", ""),  # Encounter 22
+                ("vengo de la tienda", "I come from the store", ""), ("vengo del trabajo", "I come from work", ""), ("vengo de casa", "I come from home", ""),  # Encounter 23
+                ("estoy cerca del centro", "I'm near downtown", ""), ("estoy cerca de aquí", "I'm near here", ""), ("estoy cerca del lugar", "I'm near the place", ""),  # Encounter 24
+                ("estoy lejos de aquí", "I'm far from here", ""), ("estoy lejos del centro", "I'm far from downtown", ""), ("estoy lejos de casa", "I'm far from home", ""),  # Encounter 25
+                ("voy hacia la salida", "I'm heading toward the exit", ""), ("voy hacia el centro", "I'm heading toward downtown", ""), ("voy hacia la puerta", "I'm heading toward the door", ""),  # Encounter 26
+                ("paso por tu casa", "I pass by your house", ""), ("paso por aquí", "I pass by here", ""), ("paso por el centro", "I pass through downtown", ""),  # Encounter 27
+                ("entro al edificio", "I enter the building", ""), ("entro a la casa", "I enter the house", ""), ("entro al lugar", "I enter the place", ""),  # Encounter 28
+                ("salgo del trabajo", "I leave work", ""), ("salgo de casa", "I leave home", ""), ("salgo del edificio", "I leave the building", ""),  # Encounter 29
+                ("me quedo en casa", "I stay at home", ""), ("me quedo aquí", "I stay here", ""), ("me quedo en el hotel", "I stay at the hotel", ""),  # Encounter 30
+                ("ya comí", "I already ate", ""), ("ya llegué", "I already arrived", ""), ("ya terminé", "I already finished", ""),  # Encounter 31
+                ("todavía estoy aquí", "I'm still here", ""), ("todavía estoy esperando", "I'm still waiting", ""), ("todavía estoy trabajando", "I'm still working", ""),  # Encounter 32
+                ("aún no llega", "it hasn't arrived yet", ""), ("aún no empieza", "it hasn't started yet", ""), ("aún no termina", "it hasn't finished yet", ""),  # Encounter 33
+                ("ahora mismo voy", "I'm going right now", ""), ("ahora mismo llego", "I'm arriving right now", ""), ("ahora mismo salgo", "I'm leaving right now", ""),  # Encounter 34
+                ("después de comer", "after eating", ""), ("después de trabajar", "after working", ""), ("después de salir", "after leaving", ""),  # Encounter 35
+                ("antes de salir", "before leaving", ""), ("antes de comer", "before eating", ""), ("antes de entrar", "before entering", ""),  # Encounter 36
+                ("desde ayer", "since yesterday", ""), ("desde hoy", "since today", ""), ("desde la mañana", "since the morning", ""),  # Encounter 37
+                ("por dos horas", "for two hours", ""), ("por un rato", "for a while", ""), ("por unos días", "for a few days", ""),  # Encounter 38
+                ("en diez minutos", "in ten minutes", ""), ("en un momento", "in a moment", ""), ("en un rato", "in a bit", ""),  # Encounter 39
+                ("cuando llegues", "when you arrive", ""), ("cuando salgas", "when you leave", ""), ("cuando puedas", "when you can", ""),  # Encounter 40
+                ("tengo hambre", "I'm hungry", ""), ("tengo sueño", "I'm sleepy", ""), ("tengo frío", "I'm cold", ""),  # Encounter 41
+                ("tengo calor", "I'm hot", ""), ("me siento cansado", "I feel tired", ""), ("me siento bien", "I feel good", ""),  # Encounter 42
+                ("me siento mal", "I feel bad", ""), ("me gusta este lugar", "I like this place", ""), ("me gusta esto", "I like this", ""),  # Encounter 43
+                ("me gusta eso", "I like that", ""), ("no me gusta eso", "I don't like that", ""), ("no me gusta esto", "I don't like this", ""),  # Encounter 44
+                ("no me gusta aquí", "I don't like it here", ""), ("necesito dinero", "I need money", ""), ("necesito ayuda", "I need help", ""),  # Encounter 45
+                ("necesito tiempo", "I need time", ""), ("busco un baño", "I'm looking for a bathroom", ""), ("busco ayuda", "I'm looking for help", ""),  # Encounter 46
+                ("busco el lugar", "I'm looking for the place", ""), ("encuentro la salida", "I find the exit", ""), ("encuentro el lugar", "I find the place", ""),  # Encounter 47
+            ],
+        },
+    ],
 }
 
 # --- Generate ENCOUNTER_WORDS, SITUATIONS, SITUATION_WORDS from compact data ---
@@ -639,14 +696,14 @@ for category, sub_list in _SUB_SITUATIONS.items():
         prefix = sub["word_prefix"]
         words = sub["words"]
 
-        for enc_num in range(1, 51):
+        num_encounters = len(words) // 3
+        for enc_num in range(1, num_encounters + 1):
             # Word indices: 3 words per encounter
             base = (enc_num - 1) * 3
             w1 = words[base]
             w2 = words[base + 1]
             w3 = words[base + 2]
 
-            # Each situation gets encounter_number 1-50 independently
             # Situation ID uses word_prefix for uniqueness (e.g., bank_open_1, bank_wire_1)
             situation_id = f"{prefix}_{enc_num}"
 

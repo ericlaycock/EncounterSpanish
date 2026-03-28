@@ -5,6 +5,7 @@ from app.database import get_db
 from app.auth import get_current_user
 from app.models import User, Situation, UserSituation, UserWord, Word, Conversation, SituationWord
 from app.services.subscription_service import check_paywall
+from app.services.daily_encounter_service import check_daily_limit, record_encounter, get_daily_encounter_usage
 from app.schemas import (
     SituationListItem,
     SituationDetail,
@@ -206,6 +207,15 @@ async def get_completed_grammar(
     return {"grammar_units": result}
 
 
+@router.get("/daily-usage")
+async def get_daily_usage(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get today's encounter usage for the current user."""
+    return get_daily_encounter_usage(db, current_user.id)
+
+
 @router.get("", response_model=list[SituationListItem])
 async def list_situations(
     current_user: User = Depends(get_current_user),
@@ -316,6 +326,15 @@ async def start_situation(
                 detail={"error": error}
             )
 
+    # Check daily encounter limit (admin bypasses)
+    if not current_user.is_admin:
+        allowed, error = check_daily_limit(db, str(current_user.id))
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={"error": error}
+            )
+
     # Get or create conversation - THIS IS THE SINGLE SOURCE OF TRUTH FOR WORDS
     conversation = db.query(Conversation).filter(
         Conversation.user_id == current_user.id,
@@ -358,7 +377,10 @@ async def start_situation(
             situation_id=situation_id
         )
         db.add(user_situation)
-    
+
+    # Record daily encounter usage
+    record_encounter(db, current_user.id, situation_id)
+
     db.commit()
     db.refresh(conversation)
     
