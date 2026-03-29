@@ -159,9 +159,11 @@ async def create_conversation(
             if language_mode in ("spanish_text", "spanish_audio"):
                 language_mode = language_mode.replace("spanish_", "catalan_")
 
-        # Skip TTS for initial message — frontend renders typewriter-only when no audio URL.
-        # This makes conversation creation instant (~200ms) instead of waiting for TTS (~2s+).
-        initial_audio_url = None
+        # Use pre-generated R2 audio for initial message (no TTS call needed).
+        # Audio files are uploaded by scripts/pregenerate_initial_audio.py with
+        # deterministic filenames: initial_msg_{situation_id}.mp3
+        from app.config import settings as _settings
+        initial_audio_url = f"{_settings.r2_public_url}/initial_msg_{situation.id}.mp3" if _settings.r2_public_url else None
 
         system_prompt = build_system_prompt(
             situation.animation_type, situation.id, language_mode,
@@ -206,8 +208,8 @@ async def create_conversation(
             if language_mode in ("spanish_text", "spanish_audio"):
                 language_mode = language_mode.replace("spanish_", "catalan_")
 
-        # Skip TTS for initial message — frontend renders typewriter-only when no audio URL.
-        initial_audio_url = None
+        # Use pre-generated R2 audio for initial message
+        initial_audio_url = f"{_settings.r2_public_url}/initial_msg_{situation.id}.mp3" if _settings.r2_public_url else None
 
         system_prompt = build_system_prompt(
             situation.animation_type, situation.id, language_mode,
@@ -491,8 +493,10 @@ async def voice_turn(
             request_id=request_id, user_id=str(current_user.id),
             db=db, learning_phase=learning_phase,
         )
-        assistant_audio_url = get_audio_url(audio_filename)
-        background_tasks.add_task(upload_to_r2, str(audio_path), audio_filename)
+        # Synchronous R2 upload — required for multi-replica setups where local
+        # /tmp/audio/ is per-replica. R2 URL works from any replica.
+        r2_url = upload_to_r2(str(audio_path), audio_filename)
+        assistant_audio_url = r2_url or get_audio_url(audio_filename)
         tts_time = time.time() - tts_start
 
         conversation_complete = check_conversation_complete(conversation, "voice")
