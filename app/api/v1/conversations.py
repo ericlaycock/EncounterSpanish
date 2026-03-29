@@ -1,6 +1,6 @@
 import json as json_module
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import get_current_user, get_current_user_from_query
@@ -361,7 +361,8 @@ async def voice_turn(
     audio: UploadFile = File(...),
     messages_json: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """Process a voice turn: STT → detect → update → generate → TTS"""
     import time
@@ -549,14 +550,12 @@ async def voice_turn(
         db=db,
         learning_phase=learning_phase
     )
-    # Upload to R2 (falls back to local URL if R2 not configured)
-    r2_url = upload_to_r2(str(audio_path), audio_filename)
-    assistant_audio_url = r2_url or get_audio_url(audio_filename)
+    # Upload to R2 in background — return local URL immediately so the response isn't blocked
+    # by boto3 cold start + TLS handshake (can take 55s+ on first call)
+    assistant_audio_url = get_audio_url(audio_filename)
+    background_tasks.add_task(upload_to_r2, str(audio_path), audio_filename)
     tts_time = time.time() - tts_start
-    if r2_url:
-        logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url} (R2)")
-    else:
-        logger.warning(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url} (LOCAL FALLBACK — R2 upload failed)")
+    logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url} (R2 upload queued in background)")
     
     # Check if conversation is complete
     conversation_complete = check_conversation_complete(conversation, "voice")
