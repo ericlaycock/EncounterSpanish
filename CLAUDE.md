@@ -27,7 +27,7 @@
 | Module | Prefix | Key Endpoints |
 |--------|--------|---------------|
 | `auth.py` | `/v1/auth` | register, login |
-| `situations.py` | `/v1/situations` | list, detail, start, complete, next |
+| `situations.py` | `/v1/situations` | list, detail, start, complete, next, daily-usage, admin/ai-logs |
 | `conversations.py` | `/v1/conversations` | create, voice-turn |
 | `user_words.py` | `/v1/user/words` | get words, unknown words, typed-correct |
 | `onboarding.py` | `/v1/onboarding` | status, save-selections, available-categories |
@@ -44,6 +44,7 @@
 | `llm_gateway.py` | OpenAI chat completions wrapper |
 | `openai_media_gateway.py` | Whisper STT + TTS wrapper |
 | `subscription_service.py` | Free tier limit checking (25 encounters) |
+| `daily_encounter_service.py` | 30/day encounter limit checking and recording |
 
 ## Patterns
 
@@ -52,6 +53,12 @@
 - **Locking**: `.with_for_update()` on conversation lookups to prevent races
 - **Mastery**: `spoken_correct_count >= settings.mastery_spoken_threshold` (default 2)
 - **Word selection**: 3 encounter + 2 high-frequency per situation, ordered by frequency_rank
+
+## Admin Analytics
+
+- `GET /v1/situations/admin/ai-logs` — Admin-only endpoint returning aggregate TTS/STT/LLM latency stats (avg/min/max/count per model) plus recent 20 TTS and 20 STT calls with details (format, latency, errors). Useful for monitoring whisper-1 fallback rate and TTS performance.
+- AI request logging tables: `llm_requests`, `stt_requests`, `tts_requests` (defined in `app/models/ai_requests.py`)
+- Initial message TTS is cached in-memory by `(situation_id, catalan_mode)` in `conversations.py` — clears on deploy
 
 ## Database
 
