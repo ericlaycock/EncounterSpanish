@@ -80,8 +80,8 @@ SITUATION_VOICE_CONFIG = {
         "instructions": f"{_ACCENT} Use a deep, husky baritone male voice.",
     },
     "core": {
-        "voice": "shimmer",
-        "instructions": f"{_ACCENT} Use a warm, friendly female voice.",
+        "voice": "echo",
+        "instructions": f"{_ACCENT} Use a casual, friendly male voice.",
     },
 }
 
