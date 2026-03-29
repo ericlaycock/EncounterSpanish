@@ -311,6 +311,19 @@ async def mark_word_detected(
     }
 
 
+@router.get("/debug/stream-test")
+async def stream_test():
+    """Diagnostic: test if NDJSON streaming actually flushes through middleware.
+    Yields two events 3s apart. If the client receives them 3s apart, streaming works.
+    If both arrive together after 3s, middleware is buffering."""
+    import asyncio
+    async def generate():
+        yield json_module.dumps({"type": "ping", "time": "t=0s", "message": "If you see this immediately, streaming works"}) + "\n"
+        await asyncio.sleep(3)
+        yield json_module.dumps({"type": "pong", "time": "t=3s", "message": "This should arrive 3s after ping"}) + "\n"
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
+
+
 @router.post("/{conversation_id}/voice-turn")
 async def voice_turn(
     conversation_id: str,
@@ -413,14 +426,17 @@ async def voice_turn(
         missing_word_ids = get_missing_word_ids(conversation, "voice")
 
         transcript_stream_time = time.time() - start_time
-        logger.info(f"[Voice Turn] Time to transcript stream: {transcript_stream_time:.2f}s")
+        logger.info(f"[Voice Turn] YIELD transcript at {transcript_stream_time:.2f}s")
 
-        yield json_module.dumps({
+        transcript_payload = json_module.dumps({
             "type": "transcript",
             "user_transcript": user_transcript,
             "detected_word_ids": detected_word_ids,
             "missing_word_ids": missing_word_ids,
         }) + "\n"
+        logger.info(f"[Voice Turn] Transcript payload size: {len(transcript_payload)} bytes")
+        yield transcript_payload
+        logger.info(f"[Voice Turn] AFTER transcript yield at {time.time() - start_time:.2f}s")
 
         # ── EVENT 2: LLM → TTS → stream AI response ───────────────────
         vocab_level = get_vocab_level(db, current_user.id)
@@ -505,7 +521,7 @@ async def voice_turn(
         db.commit()
 
         response_stream_time = time.time() - start_time
-        logger.info(f"[Voice Turn] Time to AI response stream: {response_stream_time:.2f}s (stt: {stt_time:.2f}s, gen: {gen_time:.2f}s, tts: {tts_time:.2f}s)")
+        logger.info(f"[Voice Turn] YIELD response at {response_stream_time:.2f}s (stt: {stt_time:.2f}s, gen: {gen_time:.2f}s, tts: {tts_time:.2f}s)")
         if response_stream_time > 3.0:
             logger.warning(f"[Voice Turn] AI response exceeded 3s threshold: {response_stream_time:.2f}s")
 
