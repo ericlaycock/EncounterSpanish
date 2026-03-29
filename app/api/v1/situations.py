@@ -41,6 +41,45 @@ class AdminSituationItem(BaseModel):
     encounter_number: int
 
 
+@router.get("/admin/ai-logs")
+async def get_admin_ai_logs(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Return TTS, STT, and LLM latency stats for admin users."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    from app.models import TTSRequest, STTRequest, LLMRequest
+    from sqlalchemy import func as sql_func
+
+    def stats_for(model_cls):
+        rows = db.query(
+            model_cls.model,
+            sql_func.count().label("calls"),
+            sql_func.round(sql_func.avg(model_cls.latency_ms)).label("avg_ms"),
+            sql_func.min(model_cls.latency_ms).label("min_ms"),
+            sql_func.max(model_cls.latency_ms).label("max_ms"),
+            sql_func.sum(model_cls.estimated_cost).label("total_cost"),
+        ).filter(model_cls.success == True).group_by(model_cls.model).all()
+        return [{"model": r.model, "calls": r.calls, "avg_ms": r.avg_ms, "min_ms": r.min_ms, "max_ms": r.max_ms, "total_cost": float(r.total_cost or 0)} for r in rows]
+
+    # Recent individual TTS calls (last 20)
+    recent_tts = db.query(TTSRequest).order_by(TTSRequest.created_at.desc()).limit(20).all()
+    recent_tts_list = [
+        {"id": str(r.id), "voice": r.voice, "input_chars": r.input_chars, "latency_ms": r.latency_ms,
+         "success": r.success, "error_code": r.error_code, "created_at": str(r.created_at)}
+        for r in recent_tts
+    ]
+
+    return {
+        "tts_stats": stats_for(TTSRequest),
+        "stt_stats": stats_for(STTRequest),
+        "llm_stats": stats_for(LLMRequest),
+        "recent_tts": recent_tts_list,
+    }
+
+
 @router.get("/admin/all", response_model=List[AdminSituationItem])
 async def get_admin_all_situations(
     current_user: User = Depends(get_current_user),
