@@ -158,33 +158,9 @@ async def create_conversation(
             if language_mode in ("spanish_text", "spanish_audio"):
                 language_mode = language_mode.replace("spanish_", "catalan_")
 
-        # Generate TTS for initial message (cached by situation_id + catalan_mode)
-        cache_key = (situation.id, current_user.catalan_mode)
-        initial_audio_url = _initial_tts_cache.get(cache_key)
-        if not initial_audio_url and initial_message:
-            try:
-                init_audio_filename = generate_audio_filename()
-                init_audio_path = get_audio_path(init_audio_filename)
-                tts_voice, tts_instructions = get_tts_instructions(
-                    situation.animation_type, catalan_mode=current_user.catalan_mode
-                )
-                await gateway_synthesize_speech(
-                    text=initial_message,
-                    output_path=str(init_audio_path),
-                    voice=tts_voice,
-                    instructions=tts_instructions,
-                    request_id=str(voice_conv.id),
-                    user_id=str(current_user.id),
-                    db=db,
-                )
-                r2_url = upload_to_r2(str(init_audio_path), init_audio_filename)
-                initial_audio_url = r2_url or get_audio_url(init_audio_filename)
-                _initial_tts_cache[cache_key] = initial_audio_url
-                logger.info(f"[Create Conv] Initial message TTS (generated): {initial_audio_url}")
-            except Exception as e:
-                logger.error(f"[Create Conv] Initial message TTS failed: {e}")
-        elif initial_audio_url:
-            logger.info(f"[Create Conv] Initial message TTS (cached): {initial_audio_url}")
+        # Skip TTS for initial message — frontend renders typewriter-only when no audio URL.
+        # This makes conversation creation instant (~200ms) instead of waiting for TTS (~2s+).
+        initial_audio_url = None
 
         system_prompt = build_system_prompt(
             situation.animation_type, situation.id, language_mode,
@@ -229,30 +205,8 @@ async def create_conversation(
             if language_mode in ("spanish_text", "spanish_audio"):
                 language_mode = language_mode.replace("spanish_", "catalan_")
 
-        # Generate TTS for initial message (cached by situation_id + catalan_mode)
-        cache_key = (situation.id, current_user.catalan_mode)
-        initial_audio_url = _initial_tts_cache.get(cache_key)
-        if not initial_audio_url and initial_message:
-            try:
-                init_audio_filename = generate_audio_filename()
-                init_audio_path = get_audio_path(init_audio_filename)
-                tts_voice, tts_instructions = get_tts_instructions(
-                    situation.animation_type, catalan_mode=current_user.catalan_mode
-                )
-                await gateway_synthesize_speech(
-                    text=initial_message,
-                    output_path=str(init_audio_path),
-                    voice=tts_voice,
-                    instructions=tts_instructions,
-                    request_id=str(conversation.id),
-                    user_id=str(current_user.id),
-                    db=db,
-                )
-                r2_url = upload_to_r2(str(init_audio_path), init_audio_filename)
-                initial_audio_url = r2_url or get_audio_url(init_audio_filename)
-                _initial_tts_cache[cache_key] = initial_audio_url
-            except Exception as e:
-                logger.error(f"[Create Conv] Initial message TTS failed: {e}")
+        # Skip TTS for initial message — frontend renders typewriter-only when no audio URL.
+        initial_audio_url = None
 
         system_prompt = build_system_prompt(
             situation.animation_type, situation.id, language_mode,
