@@ -1,6 +1,7 @@
 import json as json_module
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import get_current_user, get_current_user_from_query
@@ -308,7 +309,7 @@ async def mark_word_detected(
     }
 
 
-@router.post("/{conversation_id}/voice-turn", response_model=VoiceTurnResponse)
+@router.post("/{conversation_id}/voice-turn")
 async def voice_turn(
     conversation_id: str,
     request: Request,
@@ -351,20 +352,16 @@ async def voice_turn(
             detail="This endpoint is for voice mode only"
         )
     
-    # Step 1: STT transcription with context prompt
+    # ── Read audio + prepare context (fast) ──────────────────────────────
     read_start = time.time()
     audio_bytes = await audio.read()
     read_time = time.time() - read_start
-    logger.info(f"[Voice Turn] Audio read: {read_time:.2f}s, size: {len(audio_bytes)} bytes")
-    
-    # Get words and situation for prompt context
+
     db_start = time.time()
     words = get_words_by_ids(db, conversation.target_word_ids)
     situation = db.query(Situation).filter(Situation.id == conversation.situation_id).first()
     db_time = time.time() - db_start
-    logger.info(f"[Voice Turn] DB queries: {db_time:.2f}s")
 
-    # Catalan mode: swap spanish → catalan for word detection + prompts
     catalan_mode = current_user.catalan_mode
     if catalan_mode:
         words = apply_catalan_mode(words, db)
@@ -374,39 +371,7 @@ async def voice_turn(
         catalan_mode=catalan_mode,
     )
 
-    stt_start = time.time()
-    user_transcript = await gateway_transcribe_audio(
-        audio_bytes=audio_bytes,
-        filename=audio.filename or "audio.mp3",
-        prompt=transcription_prompt,
-        language=None,  # Auto-detect — users mix English + Spanish/Catalan
-        request_id=request_id,
-        user_id=str(current_user.id),
-        db=db,
-        learning_phase=learning_phase
-    )
-    stt_time = time.time() - stt_start
-    logger.info(f"[Voice Turn] STT transcription: {stt_time:.2f}s, transcript: '{user_transcript}'")
-    
-    # Step 2: Detect word_ids
-    detect_start = time.time()
-    detected_word_ids = detect_words_in_text(user_transcript, words)
-    detect_time = time.time() - detect_start
-    logger.info(f"[Voice Turn] Word detection: {detect_time:.2f}s, detected: {detected_word_ids}")
-    
-    # Step 3: Update used_spoken_word_ids
-    update_start = time.time()
-    current_used = set(conversation.used_spoken_word_ids or [])
-    current_used.update(detected_word_ids)
-    conversation.used_spoken_word_ids = list(current_used)
-    
-    # Step 4: Update user_words.spoken_correct_count
-    update_user_word_stats(db, str(current_user.id), detected_word_ids, "voice")
-    update_time = time.time() - update_start
-    logger.info(f"[Voice Turn] DB updates: {update_time:.2f}s")
-    
-    # Step 5: Generate assistant_text via OpenAI
-    # Parse frontend messages if provided (multi-turn conversation history)
+    # Parse frontend messages up front (needed for LLM later)
     frontend_messages = None
     if messages_json:
         try:
@@ -414,124 +379,137 @@ async def voice_turn(
         except (json_module.JSONDecodeError, TypeError):
             logger.warning("[Voice Turn] Failed to parse messages_json, falling back to single-turn")
 
-    # Compute language mode for prompt selection
-    vocab_level = get_vocab_level(db, current_user.id)
-    language_mode = get_language_mode(situation.encounter_number, vocab_level)
+    # ── Streaming generator: yields transcript first, then AI response ─
+    async def generate():
+        nonlocal conversation  # needed for DB updates
 
-    # Catalan mode: adjust language_mode for prompt selection
-    if catalan_mode and language_mode in ("spanish_text", "spanish_audio"):
-        language_mode = language_mode.replace("spanish_", "catalan_")
-
-    gen_start = time.time()
-
-    if frontend_messages:
-        # Multi-turn: use the full message history from frontend
-        # Append the user's transcript as the latest user message
-        llm_messages = list(frontend_messages)
-        llm_messages.append({"role": "user", "content": user_transcript})
-
-        context = ConversationContext(
+        # ── EVENT 1: STT → word detection → DB update → stream transcript ──
+        stt_start = time.time()
+        user_transcript = await gateway_transcribe_audio(
+            audio_bytes=audio_bytes,
+            filename=audio.filename or "audio.mp3",
+            prompt=transcription_prompt,
+            language=None,
             request_id=request_id,
             user_id=str(current_user.id),
-            system_prompt="",  # Already in messages[0]
-            user_prompt="",    # Already in messages
-            agent_id="conversation_agent",
-            prompt_version="v2",
-            return_json=False,
+            db=db,
             learning_phase=learning_phase,
-            messages=llm_messages,
         )
-        llm_result = await generate_conversation(context, db)
-        # Plain text response — no JSON parsing needed
-        raw_content = llm_result.get("content", "")
-        assistant_text = raw_content if isinstance(raw_content, str) else raw_content.get("assistant_text", str(raw_content))
-    else:
-        # Legacy single-turn fallback
-        grammar_config = get_grammar_config(conversation.situation_id)
-        if grammar_config:
-            system_prompt = build_grammar_system_prompt(conversation.situation_id, catalan_mode=catalan_mode)
-            user_prompt = build_grammar_user_prompt(
-                situation.title,
-                conversation.used_spoken_word_ids or [],
-                user_transcript,
-                grammar_config,
+        stt_time = time.time() - stt_start
+        logger.info(f"[Voice Turn] STT transcription: {stt_time:.2f}s, transcript: '{user_transcript}'")
+        if stt_time > 2.0:
+            logger.warning(f"[Voice Turn] STT exceeded 2s threshold: {stt_time:.2f}s")
+
+        detected_word_ids = detect_words_in_text(user_transcript, words)
+        logger.info(f"[Voice Turn] Word detection: detected {detected_word_ids}")
+
+        current_used = set(conversation.used_spoken_word_ids or [])
+        current_used.update(detected_word_ids)
+        conversation.used_spoken_word_ids = list(current_used)
+        update_user_word_stats(db, str(current_user.id), detected_word_ids, "voice")
+
+        missing_word_ids = get_missing_word_ids(conversation, "voice")
+
+        transcript_stream_time = time.time() - start_time
+        logger.info(f"[Voice Turn] Time to transcript stream: {transcript_stream_time:.2f}s")
+
+        yield json_module.dumps({
+            "type": "transcript",
+            "user_transcript": user_transcript,
+            "detected_word_ids": detected_word_ids,
+            "missing_word_ids": missing_word_ids,
+        }) + "\n"
+
+        # ── EVENT 2: LLM → TTS → stream AI response ───────────────────
+        vocab_level = get_vocab_level(db, current_user.id)
+        language_mode = get_language_mode(situation.encounter_number, vocab_level)
+        if catalan_mode and language_mode in ("spanish_text", "spanish_audio"):
+            language_mode = language_mode.replace("spanish_", "catalan_")
+
+        gen_start = time.time()
+        if frontend_messages:
+            llm_messages = list(frontend_messages)
+            llm_messages.append({"role": "user", "content": user_transcript})
+            context = ConversationContext(
+                request_id=request_id,
+                user_id=str(current_user.id),
+                system_prompt="",
+                user_prompt="",
+                agent_id="conversation_agent",
+                prompt_version="v2",
+                return_json=False,
+                learning_phase=learning_phase,
+                messages=llm_messages,
             )
+            llm_result = await generate_conversation(context, db)
+            raw_content = llm_result.get("content", "")
+            assistant_text = raw_content if isinstance(raw_content, str) else raw_content.get("assistant_text", str(raw_content))
         else:
-            system_prompt = get_conversation_system_prompt(
-                language_mode, catalan_mode=catalan_mode,
-                animation_type=situation.animation_type if situation else "",
-                situation_id=conversation.situation_id,
+            grammar_config = get_grammar_config(conversation.situation_id)
+            if grammar_config:
+                system_prompt = build_grammar_system_prompt(conversation.situation_id, catalan_mode=catalan_mode)
+                user_prompt = build_grammar_user_prompt(
+                    situation.title, conversation.used_spoken_word_ids or [],
+                    user_transcript, grammar_config,
+                )
+            else:
+                system_prompt = get_conversation_system_prompt(
+                    language_mode, catalan_mode=catalan_mode,
+                    animation_type=situation.animation_type if situation else "",
+                    situation_id=conversation.situation_id,
+                )
+                user_prompt = build_conversation_prompt(
+                    situation.title, words, conversation.used_spoken_word_ids or [],
+                    user_transcript, catalan_mode=catalan_mode,
+                )
+            context = ConversationContext(
+                request_id=request_id,
+                user_id=str(current_user.id),
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                agent_id="conversation_agent",
+                prompt_version="v2",
+                return_json=False,
+                learning_phase=learning_phase,
             )
-            user_prompt = build_conversation_prompt(
-                situation.title,
-                words,
-                conversation.used_spoken_word_ids or [],
-                user_transcript,
-                catalan_mode=catalan_mode,
-            )
+            llm_result = await generate_conversation(context, db)
+            raw_content = llm_result.get("content", "")
+            assistant_text = raw_content if isinstance(raw_content, str) else raw_content.get("assistant_text", str(raw_content))
 
-        context = ConversationContext(
-            request_id=request_id,
-            user_id=str(current_user.id),
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            agent_id="conversation_agent",
-            prompt_version="v2",
-            return_json=False,
-            learning_phase=learning_phase
+        gen_time = time.time() - gen_start
+        logger.info(f"[Voice Turn] Text generation: {gen_time:.2f}s, text: '{assistant_text[:50]}...'")
+
+        tts_start = time.time()
+        audio_filename = generate_audio_filename()
+        audio_path = get_audio_path(audio_filename)
+        tts_voice, tts_instructions = get_tts_instructions(
+            situation.animation_type if situation else "", catalan_mode=catalan_mode,
         )
-        llm_result = await generate_conversation(context, db)
-        raw_content = llm_result.get("content", "")
-        assistant_text = raw_content if isinstance(raw_content, str) else raw_content.get("assistant_text", str(raw_content))
+        await gateway_synthesize_speech(
+            text=assistant_text, output_path=str(audio_path),
+            voice=tts_voice, instructions=tts_instructions,
+            request_id=request_id, user_id=str(current_user.id),
+            db=db, learning_phase=learning_phase,
+        )
+        assistant_audio_url = get_audio_url(audio_filename)
+        background_tasks.add_task(upload_to_r2, str(audio_path), audio_filename)
+        tts_time = time.time() - tts_start
 
-    gen_time = time.time() - gen_start
-    logger.info(f"[Voice Turn] Text generation: {gen_time:.2f}s, text: '{assistant_text[:50]}...'")
-    
-    # Step 6: TTS generate audio file
-    tts_start = time.time()
-    audio_filename = generate_audio_filename()
-    audio_path = get_audio_path(audio_filename)
-    tts_voice, tts_instructions = get_tts_instructions(
-        situation.animation_type if situation else "", catalan_mode=catalan_mode
-    )
-    await gateway_synthesize_speech(
-        text=assistant_text,
-        output_path=str(audio_path),
-        voice=tts_voice,
-        instructions=tts_instructions,
-        request_id=request_id,
-        user_id=str(current_user.id),
-        db=db,
-        learning_phase=learning_phase
-    )
-    # Upload to R2 in background — return local URL immediately so the response isn't blocked
-    # by boto3 cold start + TLS handshake (can take 55s+ on first call)
-    assistant_audio_url = get_audio_url(audio_filename)
-    background_tasks.add_task(upload_to_r2, str(audio_path), audio_filename)
-    tts_time = time.time() - tts_start
-    logger.info(f"[Voice Turn] TTS generation: {tts_time:.2f}s, audio_url: {assistant_audio_url} (R2 upload queued in background)")
-    
-    # Check if conversation is complete
-    conversation_complete = check_conversation_complete(conversation, "voice")
-    if conversation_complete:
-        conversation.status = "complete"
-    
-    commit_start = time.time()
-    db.commit()
-    commit_time = time.time() - commit_start
-    logger.info(f"[Voice Turn] DB commit: {commit_time:.2f}s")
-    
-    # Get missing words
-    missing_word_ids = get_missing_word_ids(conversation, "voice")
-    
-    total_time = time.time() - start_time
-    logger.info(f"[Voice Turn] Total processing time: {total_time:.2f}s (read: {read_time:.2f}s, db_queries: {db_time:.2f}s, stt: {stt_time:.2f}s, detect: {detect_time:.2f}s, update: {update_time:.2f}s, gen: {gen_time:.2f}s, tts: {tts_time:.2f}s, commit: {commit_time:.2f}s)")
-    
-    return VoiceTurnResponse(
-        user_transcript=user_transcript,
-        detected_word_ids=detected_word_ids,
-        missing_word_ids=missing_word_ids,
-        assistant_text=assistant_text,
-        assistant_audio_url=assistant_audio_url,
-        conversation_complete=conversation_complete
-    )
+        conversation_complete = check_conversation_complete(conversation, "voice")
+        if conversation_complete:
+            conversation.status = "complete"
+        db.commit()
+
+        response_stream_time = time.time() - start_time
+        logger.info(f"[Voice Turn] Time to AI response stream: {response_stream_time:.2f}s (stt: {stt_time:.2f}s, gen: {gen_time:.2f}s, tts: {tts_time:.2f}s)")
+        if response_stream_time > 3.0:
+            logger.warning(f"[Voice Turn] AI response exceeded 3s threshold: {response_stream_time:.2f}s")
+
+        yield json_module.dumps({
+            "type": "response",
+            "assistant_text": assistant_text,
+            "assistant_audio_url": assistant_audio_url,
+            "conversation_complete": conversation_complete,
+        }) + "\n"
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
