@@ -41,7 +41,7 @@ _ACCENT = "Speak with a Mexican Spanish accent, mixing English and Spanish words
 _CATALAN_ACCENT = "Speak with a Catalan accent, mixing English and Catalan words naturally."
 SITUATION_VOICE_CONFIG = {
     "police": {
-        "voice": "nova",
+        "voice": "ash",
         "instructions": f"{_ACCENT} Use an authoritative female voice, firm but professional.",
     },
     "banking": {
@@ -49,7 +49,7 @@ SITUATION_VOICE_CONFIG = {
         "instructions": f"{_ACCENT} Use a professional, composed female voice with a warm undertone.",
     },
     "airport": {
-        "voice": "nova",
+        "voice": "ash",
         "instructions": f"{_ACCENT} Use a professional, clear female voice.",
     },
     "clothing": {
@@ -61,7 +61,7 @@ SITUATION_VOICE_CONFIG = {
         "instructions": f"{_ACCENT} Use a warm, older female voice with a friendly, neighborly tone.",
     },
     "internet": {
-        "voice": "nova",
+        "voice": "ash",
         "instructions": f"{_ACCENT} Use a young, energetic female voice.",
     },
     "restaurant": {
@@ -69,7 +69,7 @@ SITUATION_VOICE_CONFIG = {
         "instructions": f"{_ACCENT} Use a suave, charming male voice.",
     },
     "mechanic": {
-        "voice": "onyx",
+        "voice": "verse",
         "instructions": f"{_ACCENT} Use a deep male voice.",
     },
     "groceries": {
@@ -77,7 +77,7 @@ SITUATION_VOICE_CONFIG = {
         "instructions": f"{_ACCENT} Use a casual, charming male voice.",
     },
     "contractor": {
-        "voice": "onyx",
+        "voice": "verse",
         "instructions": f"{_ACCENT} Use a deep, husky baritone male voice.",
     },
     "core": {
