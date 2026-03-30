@@ -85,3 +85,11 @@ def cleanup_old_audio_files(max_age_hours: int = 24):
         file_age = current_time - file_path.stat().st_mtime
         if file_age > max_age_seconds:
             file_path.unlink()
+
+
+def concatenate_audio_files(paths: list, output_path: str):
+    """Concatenate MP3 files by binary append (MP3 frames are self-delimiting)."""
+    with open(output_path, 'wb') as out:
+        for p in paths:
+            with open(p, 'rb') as f:
+                out.write(f.read())

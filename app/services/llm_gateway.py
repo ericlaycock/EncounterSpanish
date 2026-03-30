@@ -251,3 +251,36 @@ async def generate_conversation(
         # Re-raise exception
         raise
 
+
+def generate_conversation_stream(
+    context: ConversationContext,
+) -> Any:
+    """Stream LLM response tokens via the Responses API.
+
+    Yields text delta strings as they arrive. Does NOT handle DB logging
+    (caller is responsible for timing/cost tracking).
+
+    Usage:
+        for chunk in generate_conversation_stream(context):
+            accumulated += chunk
+    """
+    if context.messages:
+        messages = context.messages
+    else:
+        messages = [
+            {"role": "system", "content": context.system_prompt},
+            {"role": "user", "content": context.user_prompt},
+        ]
+
+    client = get_client()
+    stream = client.responses.create(
+        model=MODEL,
+        input=messages,
+        reasoning={"effort": "low"},
+        stream=True,
+    )
+
+    for event in stream:
+        if hasattr(event, 'type') and event.type == "response.output_text.delta":
+            yield event.delta
+
