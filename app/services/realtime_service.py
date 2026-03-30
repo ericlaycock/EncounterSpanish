@@ -33,16 +33,45 @@ async def generate_with_realtime(
     tts_instructions: Optional[str] = None,
     request_id: str = "unknown",
 ) -> dict:
-    """Generate LLM response + TTS audio via the Realtime API.
-
-    Args:
-        messages: Conversation history [{role, content}, ...]
-        voice: TTS voice name
-        tts_instructions: Voice style instructions (used as system prompt suffix)
-        request_id: For logging
+    """Generate LLM response + TTS audio via the Realtime API (batch — waits for completion).
 
     Returns:
         {"text": str, "audio_bytes": bytes, "first_audio_ms": int, "total_ms": int}
+    """
+    result = {"text": "", "audio_chunks": [], "first_audio_ms": 0, "first_text_ms": 0}
+    async for event in stream_realtime(messages, voice, tts_instructions, request_id):
+        if event["type"] == "audio":
+            result["audio_chunks"].append(event["data"])
+            if not result["first_audio_ms"]:
+                result["first_audio_ms"] = event.get("elapsed_ms", 0)
+        elif event["type"] == "text":
+            result["text"] = event["text"]
+            result["first_text_ms"] = event.get("elapsed_ms", 0)
+        elif event["type"] == "done":
+            pass
+
+    audio_bytes = b"".join(result["audio_chunks"])
+    return {
+        "text": result["text"],
+        "audio_bytes": audio_bytes,
+        "first_audio_ms": result["first_audio_ms"],
+        "first_text_ms": result["first_text_ms"],
+        "total_ms": 0,
+    }
+
+
+async def stream_realtime(
+    messages: list,
+    voice: str = "shimmer",
+    tts_instructions: Optional[str] = None,
+    request_id: str = "unknown",
+):
+    """Stream LLM + TTS events from the Realtime API.
+
+    Yields dicts:
+        {"type": "audio", "data": bytes, "elapsed_ms": int}  — PCM16 24kHz mono chunk
+        {"type": "text", "text": str, "elapsed_ms": int}      — full transcript (when complete)
+        {"type": "done", "elapsed_ms": int}
     """
     headers = {
         "Authorization": f"Bearer {settings.openai_api_key}",
@@ -50,10 +79,7 @@ async def generate_with_realtime(
     }
 
     t0 = time.time()
-    first_audio_ms = None
-    first_text_ms = None
     full_text = ""
-    audio_chunks = []
 
     # Extract system prompt from messages
     system_content = ""
@@ -64,16 +90,13 @@ async def generate_with_realtime(
         else:
             conversation_items.append(msg)
 
-    # Append TTS style to system instructions if provided
     if tts_instructions:
         system_content += f"\n\n[Voice style: {tts_instructions}]"
 
     try:
         async with websockets.connect(REALTIME_URL, additional_headers=headers, close_timeout=5) as ws:
-            connect_ms = int((time.time() - t0) * 1000)
-            logger.info(f"[Realtime] Connected in {connect_ms}ms (request={request_id})")
+            logger.info(f"[Realtime] Connected in {int((time.time()-t0)*1000)}ms (request={request_id})")
 
-            # Configure session
             await ws.send(json.dumps({
                 "type": "session.update",
                 "session": {
@@ -85,50 +108,45 @@ async def generate_with_realtime(
                 }
             }))
 
-            # Add conversation history
             for item in conversation_items:
                 role = item["role"]
                 content = item["content"]
                 if role == "assistant":
                     await ws.send(json.dumps({
                         "type": "conversation.item.create",
-                        "item": {
-                            "type": "message",
-                            "role": "assistant",
-                            "content": [{"type": "text", "text": content}],
-                        }
+                        "item": {"type": "message", "role": "assistant",
+                                 "content": [{"type": "text", "text": content}]},
                     }))
                 elif role == "user":
                     await ws.send(json.dumps({
                         "type": "conversation.item.create",
-                        "item": {
-                            "type": "message",
-                            "role": "user",
-                            "content": [{"type": "input_text", "text": content}],
-                        }
+                        "item": {"type": "message", "role": "user",
+                                 "content": [{"type": "input_text", "text": content}]},
                     }))
 
-            # Request response
             await ws.send(json.dumps({"type": "response.create"}))
 
-            # Collect events
             while True:
                 msg = await asyncio.wait_for(ws.recv(), timeout=30)
                 event = json.loads(msg)
                 event_type = event.get("type", "")
+                elapsed_ms = int((time.time() - t0) * 1000)
 
                 if event_type == "response.audio.delta":
                     chunk = base64.b64decode(event.get("delta", ""))
-                    audio_chunks.append(chunk)
-                    if first_audio_ms is None:
-                        first_audio_ms = int((time.time() - t0) * 1000)
+                    yield {"type": "audio", "data": chunk, "elapsed_ms": elapsed_ms}
 
                 elif event_type == "response.audio_transcript.delta":
                     full_text += event.get("delta", "")
-                    if first_text_ms is None:
-                        first_text_ms = int((time.time() - t0) * 1000)
+
+                elif event_type == "response.audio_transcript.done":
+                    yield {"type": "text", "text": full_text, "elapsed_ms": elapsed_ms}
 
                 elif event_type == "response.done":
+                    # If text wasn't sent via transcript.done, send it now
+                    if full_text:
+                        yield {"type": "text", "text": full_text, "elapsed_ms": elapsed_ms}
+                    yield {"type": "done", "elapsed_ms": elapsed_ms}
                     break
 
                 elif event_type == "error":
@@ -139,26 +157,9 @@ async def generate_with_realtime(
     except websockets.exceptions.ConnectionClosed as e:
         logger.error(f"[Realtime] WebSocket closed: {e}")
         raise
-    except asyncio.TimeoutError:
-        logger.error(f"[Realtime] Timeout waiting for response")
-        raise
 
     total_ms = int((time.time() - t0) * 1000)
-    audio_bytes = b"".join(audio_chunks)
-
-    logger.info(
-        f"[Realtime] Done: {total_ms}ms total, first_audio={first_audio_ms}ms, "
-        f"first_text={first_text_ms}ms, text_len={len(full_text)}, "
-        f"audio_bytes={len(audio_bytes)} (request={request_id})"
-    )
-
-    return {
-        "text": full_text,
-        "audio_bytes": audio_bytes,  # PCM16 24kHz mono
-        "first_audio_ms": first_audio_ms or 0,
-        "first_text_ms": first_text_ms or 0,
-        "total_ms": total_ms,
-    }
+    logger.info(f"[Realtime] Stream done: {total_ms}ms (request={request_id})")
 
 
 def pcm16_to_mp3(pcm_bytes: bytes, output_path: str, sample_rate: int = 24000):

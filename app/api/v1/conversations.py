@@ -505,70 +505,49 @@ async def voice_turn_respond(
         situation.animation_type if situation else "", catalan_mode=catalan_mode,
     )
 
-    # ── Realtime API: combined LLM + TTS in one call ──
-    gen_start = time.time()
-    from app.services.realtime_service import generate_with_realtime, pcm16_to_mp3
+    # ── Realtime API: stream LLM + TTS as NDJSON ──
+    # Audio chunks arrive at ~0.8s. Frontend plays PCM16 via Web Audio API.
+    from app.services.realtime_service import stream_realtime
+    import base64 as _base64
 
-    try:
-        result = await generate_with_realtime(
-            messages=llm_messages,
-            voice=tts_voice,
-            tts_instructions=tts_instructions,
-            request_id=request_id,
-        )
-        assistant_text = result["text"]
-        audio_filename = generate_audio_filename()
-        audio_path = str(get_audio_path(audio_filename))
-
-        # Convert PCM16 → MP3
-        pcm16_to_mp3(result["audio_bytes"], audio_path)
-
-        gen_time = time.time() - gen_start
-        logger.info(
-            f"[Voice Turn] Realtime: {gen_time:.2f}s total, "
-            f"first_audio={result['first_audio_ms']}ms, text='{assistant_text[:60]}...'"
-        )
-
-    except Exception as e:
-        # Fallback to separate LLM + TTS if Realtime fails
-        logger.error(f"[Voice Turn] Realtime failed ({e}), falling back to separate LLM+TTS")
-        llm_result = await generate_conversation(
-            ConversationContext(
-                request_id=request_id, user_id=str(current_user.id),
-                system_prompt="", user_prompt="",
-                agent_id="conversation_agent", prompt_version="v2",
-                return_json=False, learning_phase=learning_phase,
+    async def generate_stream():
+        assistant_text = ""
+        try:
+            async for event in stream_realtime(
                 messages=llm_messages,
-            ), db,
-        )
-        raw_content = llm_result.get("content", "")
-        assistant_text = raw_content if isinstance(raw_content, str) else raw_content.get("assistant_text", str(raw_content))
+                voice=tts_voice,
+                tts_instructions=tts_instructions,
+                request_id=request_id,
+            ):
+                if event["type"] == "audio":
+                    yield json_module.dumps({
+                        "type": "audio",
+                        "data": _base64.b64encode(event["data"]).decode(),
+                    }) + "\n"
 
-        audio_filename = generate_audio_filename()
-        audio_path = str(get_audio_path(audio_filename))
-        await gateway_synthesize_speech(
-            text=assistant_text, output_path=audio_path,
-            voice=tts_voice, instructions=tts_instructions,
-            request_id=request_id, user_id=str(current_user.id),
-            db=db, learning_phase=learning_phase,
-        )
-        gen_time = time.time() - gen_start
-        logger.info(f"[Voice Turn] Fallback LLM+TTS: {gen_time:.2f}s, text='{assistant_text[:60]}...'")
+                elif event["type"] == "text":
+                    assistant_text = event["text"]
+                    yield json_module.dumps({
+                        "type": "text",
+                        "text": assistant_text,
+                    }) + "\n"
 
-    r2_url = upload_to_r2(audio_path, audio_filename)
-    assistant_audio_url = r2_url or get_audio_url(audio_filename)
-    tts_time = time.time() - gen_start
+                elif event["type"] == "done":
+                    conv_complete = check_conversation_complete(conversation, "voice")
+                    if conv_complete:
+                        conversation.status = "complete"
+                    db.commit()
 
-    conversation_complete = check_conversation_complete(conversation, "voice")
-    if conversation_complete:
-        conversation.status = "complete"
-    db.commit()
+                    total = time.time() - start_time
+                    logger.info(f"[Voice Turn] Realtime stream: {total:.2f}s, text='{assistant_text[:60]}'")
 
-    total = time.time() - start_time
-    logger.info(f"[Voice Turn] Respond total: {total:.2f}s (llm: {gen_time:.2f}s, tts: {tts_time:.2f}s)")
+                    yield json_module.dumps({
+                        "type": "done",
+                        "conversation_complete": conv_complete,
+                    }) + "\n"
 
-    return {
-        "assistant_text": assistant_text,
-        "assistant_audio_url": assistant_audio_url,
-        "conversation_complete": conversation_complete,
-    }
+        except Exception as e:
+            logger.error(f"[Voice Turn] Realtime stream failed: {e}")
+            yield json_module.dumps({"type": "error", "message": str(e)}) + "\n"
+
+    return StreamingResponse(generate_stream(), media_type="application/x-ndjson")
