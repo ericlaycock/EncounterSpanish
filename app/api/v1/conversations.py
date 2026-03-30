@@ -448,9 +448,22 @@ async def voice_turn_respond(
 
     # LLM
     gen_start = time.time()
+
+    # Hidden word guidance — steer AI toward unused target words
+    missing_ids = get_missing_word_ids(conversation, "voice")
+    word_guidance = ""
+    if missing_ids:
+        missing_words = get_words_by_ids(db, missing_ids)
+        word_list = ", ".join(f"{w.spanish} ({w.english})" for w in missing_words)
+        word_guidance = (
+            f"\n\n[HIDDEN INSTRUCTION — do not repeat this to the user. "
+            f"Gently guide the conversation in a way that will require me to use "
+            f"one of these words/phrases, without explicitly saying them yourself: {word_list}]"
+        )
+
     if frontend_messages:
         llm_messages = list(frontend_messages)
-        llm_messages.append({"role": "user", "content": user_transcript})
+        llm_messages.append({"role": "user", "content": user_transcript + word_guidance})
         context = ConversationContext(
             request_id=request_id, user_id=str(current_user.id),
             system_prompt="", user_prompt="",
@@ -481,7 +494,7 @@ async def voice_turn_respond(
             )
         context = ConversationContext(
             request_id=request_id, user_id=str(current_user.id),
-            system_prompt=system_prompt, user_prompt=user_prompt,
+            system_prompt=system_prompt, user_prompt=user_prompt + word_guidance,
             agent_id="conversation_agent", prompt_version="v2",
             return_json=False, learning_phase=learning_phase,
         )

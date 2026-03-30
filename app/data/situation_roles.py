@@ -61,9 +61,9 @@ SITUATION_ROLES = {
         "situation_description": "the customer needs help setting up their home internet. You are the technician on site.",
     },
     "core": {
-        "ai_role": "friendly local",
-        "user_role": "expat practicing everyday Spanish",
-        "situation_description": "the expat is practicing essential everyday phrases in a casual conversation. You are a friendly local helping them get comfortable with common expressions.",
+        "ai_role": "Eric - a local 31 year old man who is enthusiastic, joyful, and present",
+        "user_role": "an expat",
+        "situation_description": "you are both standing in a Latin American rainforest during the day.",
     },
 }
 

@@ -11,7 +11,7 @@ from app.core.logger import log_event
 from app.config import settings
 import os
 
-MODEL = "gpt-4.1-mini"
+MODEL = "gpt-5.4-mini"
 PROVIDER = "openai"
 AGENT_ID = "conversation_agent"
 
@@ -129,8 +129,9 @@ async def generate_conversation(
         api_params = {
             "model": MODEL,
             "messages": messages,
+            "reasoning": {"effort": "low"},
         }
-        
+
         if context.return_json:
             api_params["response_format"] = {"type": "json_object"}
         if context.temperature is not None:
@@ -140,8 +141,10 @@ async def generate_conversation(
         
         response = client.chat.completions.create(**api_params)
         
-        # Extract response
+        # Extract response — strip any reasoning tags that leak into content
+        import re
         content = response.choices[0].message.content
+        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
         if context.return_json:
             content = json.loads(content)
         
@@ -156,9 +159,9 @@ async def generate_conversation(
         # Estimate cost (rough estimates for gpt-4o-mini)
         estimated_cost = None
         if tokens_in and tokens_out:
-            # gpt-4o-mini: $0.15/$0.60 per 1M tokens (input/output)
-            cost_per_1m_input = 0.15
-            cost_per_1m_output = 0.60
+            # gpt-5.4-mini: $0.75/$4.50 per 1M tokens (input/output)
+            cost_per_1m_input = 0.75
+            cost_per_1m_output = 4.50
             estimated_cost = (
                 (tokens_in / 1_000_000) * cost_per_1m_input +
                 (tokens_out / 1_000_000) * cost_per_1m_output
